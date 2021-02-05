@@ -15,6 +15,10 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+#设置python导包环境
+import sys
+sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
@@ -37,8 +41,31 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # 第三方应用
+    'rest_framework'
+    
+    # 本地应用
+    'config.apps.ConfigConfig',
+    'customer.apps.CustomerConfig',
+    'dashboard.apps.DashboardConfig',
+    'delivery.apps.DeliveryConfig',
+    'groupon.apps.GrouponConfig',
+    'logs.apps.LogsConfig',
+    'order.apps.OrderConfig',
+    'payment.apps.PaymentConfig',
+    'printer.apps.PrinterConfig',
+    'product.apps.ProductConfig',
+    'promotion.apps.PromotionConfig',
+    'pvuv.apps.PvuvConfig',
+    'shop.apps.ShopConfig',
+    'staff.apps.StaffConfig',
+    'storage.apps.StorageConfig',
+    'user.apps.UserConfig',
+    'ws.apps.WsConfig',
 ]
 
+# 中间件
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -51,6 +78,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'wsc_django.urls'
 
+# 模板
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -69,14 +97,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'wsc_django.wsgi.application'
 
+# 缓存
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
+    "session": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "session"
 
-# Database
+# Database数据库
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': '127.0.0.1',  # 数据库主机
+        'PORT': 3306,  # 数据库端口
+        'USER': 'wsc_django',  # 数据库用户名
+        'PASSWORD': 'wsc',  # 数据库用户密码
+        'NAME': 'wsc_django'  # 数据库名字
     }
 }
 
@@ -103,9 +154,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# 本地语言
+LANGUAGE_CODE = 'zh-hans'
 
-TIME_ZONE = 'UTC'
+# 时区
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 
