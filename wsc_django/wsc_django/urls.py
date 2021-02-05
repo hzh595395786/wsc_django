@@ -17,10 +17,10 @@ from django.conf.urls import url, include
 from django.contrib import admin
 
 urlpatterns = [
-    url(r'^admin/', admin.site.urls),
+    # url(r'^admin/', admin.site.urls),
     url(r'', include('config.urls')),
     url(r'', include('customer.urls')),
-    url(r'', include('dashborad.urls')),
+    url(r'', include('dashboard.urls')),
     url(r'', include('delivery.urls')),
     url(r'', include('order.urls')),
     url(r'', include('payment.urls')),

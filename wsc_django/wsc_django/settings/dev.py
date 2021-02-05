@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # 第三方应用
-    'rest_framework'
+    'rest_framework',
     
     # 本地应用
     'config.apps.ConfigConfig',
@@ -127,7 +127,7 @@ DATABASES = {
         'PORT': 3306,  # 数据库端口
         'USER': 'wsc_django',  # 数据库用户名
         'PASSWORD': 'wsc',  # 数据库用户密码
-        'NAME': 'wsc_django'  # 数据库名字
+        'NAME': 'wsc_django',  # 数据库名字
     }
 }
 
