@@ -52,7 +52,7 @@ class Printer(models.Model, TimeBaseMixin):
 class Receipt(models.Model, TimeBaseMixin):
     """小票模型类"""
 
-    id = models.ForeignKey(
+    id = models.OneToOneField(
         Shop,
         primary_key=True,
         null=False,
@@ -78,7 +78,7 @@ class Receipt(models.Model, TimeBaseMixin):
 class MsgNotify(models.Model, TimeBaseMixin):
     """消息通知模型类"""
 
-    id = models.ForeignKey(Shop, primary_key=True, null=False, on_delete=models.CASCADE)
+    id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE)
     order_confirm_wx = models.BooleanField(null=False, default=False, verbose_name="开始配送/等待自提-微信")
     order_confirm_msg = models.BooleanField(null=False, default=False, verbose_name="开始配送/等待自提-短信")
     order_finish_wx = models.BooleanField(null=False, default=False, verbose_name="订单完成-微信")

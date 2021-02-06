@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
 from wsc_django.utils.models import TimeBaseMixin
@@ -7,7 +8,7 @@ from .constant import (
 )
 
 
-class User(models.Model, TimeBaseMixin):
+class User(AbstractUser, TimeBaseMixin):
     """用户模型类"""
 
     phone = models.CharField(max_length=11, unique=True, verbose_name="手机号")
@@ -37,12 +38,12 @@ class User(models.Model, TimeBaseMixin):
         ]
 
 
-class UserOpenid(models.Model, TimeBaseMixin):
-    """用户openid与appid的对应关系"""
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, verbose_name="对应的用户对象")
-    wx_openid = models.CharField(max_length=64, null=False, verbose_name="用户在对应公众号的openid")
-
-    def set_wx_openid(self, wx_openid):
-        """设置wx_openid"""
-        self.wx_openid = wx_openid
+# class UserOpenid(models.Model, TimeBaseMixin):
+#     """用户openid与appid的对应关系"""
+#
+#     user = models.OneToOneField(User, on_delete=models.CASCADE, null=False, verbose_name="对应的用户对象")
+#     wx_openid = models.CharField(max_length=64, null=False, verbose_name="用户在对应公众号的openid")
+#
+#     def set_wx_openid(self, wx_openid):
+#         """设置wx_openid"""
+#         self.wx_openid = wx_openid

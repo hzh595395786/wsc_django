@@ -55,5 +55,5 @@ class Shop(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
         indexes = [
             models.Index(name="ux_shop_code", fields=["shop_code"]),
-            models.Index(name="ix_super_admin", fields=["spuer_admin_id"]),
+            models.Index(name="ix_super_admin", fields=["super_admin"]),
         ]

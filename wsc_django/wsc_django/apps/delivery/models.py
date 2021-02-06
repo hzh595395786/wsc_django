@@ -31,7 +31,7 @@ class Delivery(models.Model, TimeBaseMixin):
 class DeliveryConfig(models.Model, TimeBaseMixin):
     """订单配送配置模型类"""
 
-    id = models.ForeignKey(
+    id = models.OneToOneField(
         Shop,
         primary_key=True,
         null=False,

@@ -31,6 +31,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# 告知Django认证系统使用我们自定义的模型类。
+AUTH_USER_MODEL = 'user.User'
 
 # Application definition
 
