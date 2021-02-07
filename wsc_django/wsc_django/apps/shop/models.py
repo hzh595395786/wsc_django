@@ -30,6 +30,8 @@ class Shop(models.Model, TimeBaseMixin):
     shop_province = models.IntegerField(null=False, default=0, verbose_name="店铺所在省份")
     shop_city = models.IntegerField(null=False, default=0, verbose_name="店铺所在城市")
     create_time = models.DateTimeField(null=False, auto_now_add=True, verbose_name="店铺创建时间")
+    description = models.CharField(max_length=256, null=False, default="", verbose_name="店铺描述")
+    inviter_phone = models.CharField(max_length=32, null=False, default="", verbose_name="推荐人手机号")
     cerify_active = models.SmallIntegerField(
         null=False,
         default=ShopVerifyActive.YES,
