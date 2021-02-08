@@ -14,4 +14,5 @@ def create_default_group_by_shop(shop: Shop):
     default_product_group = ProductGroup.objects.create(
         shop=shop, name="默认分组", default=ProductGroupDefault.YES
     )
+    default_product_group.save()
     return default_product_group

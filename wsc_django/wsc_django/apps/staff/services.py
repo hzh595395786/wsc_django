@@ -24,6 +24,7 @@ def create_super_admin_staff(shop: Shop, user: User):
         shop=shop,
         user=user,
         roles=StaffRole.SHOP_SUPER_ADMIN,
-        permissions=permissions,
+        permissions=permissions
     )
+    staff.save()
     return staff

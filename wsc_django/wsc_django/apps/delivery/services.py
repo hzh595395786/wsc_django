@@ -9,6 +9,7 @@ def create_delivery_config(shop: Shop):
     :return:
     """
     delivery_config = DeliveryConfig.objects.create(id=shop)
+    delivery_config.save()
     return delivery_config
 
 
@@ -25,4 +26,5 @@ def create_pick_period_line(
     period_line = PickPeriodConfigLine.objects.create(
         delivery_config, from_time, to_time
     )
+    period_line.save()
     return period_line
