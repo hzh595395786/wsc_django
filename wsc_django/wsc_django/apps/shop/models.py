@@ -26,9 +26,9 @@ class Shop(models.Model, TimeBaseMixin):
     shop_img = models.CharField(max_length=300, null=False, default="", verbose_name="门头照片")
     business_licence = models.CharField(max_length=300, null=False, default="", verbose_name="营业执照")
     shop_address = models.CharField(max_length=100, null=False, default="", verbose_name="店铺地址")
-    shop_country = models.IntegerField(null=False, default=0, verbose_name="店铺所在国家")
-    shop_province = models.IntegerField(null=False, default=0, verbose_name="店铺所在省份")
-    shop_city = models.IntegerField(null=False, default=0, verbose_name="店铺所在城市")
+    shop_county = models.IntegerField(null=False, default=0, verbose_name="店铺所在国家编号")
+    shop_province = models.IntegerField(null=False, default=0, verbose_name="店铺所在省份编号")
+    shop_city = models.IntegerField(null=False, default=0, verbose_name="店铺所在城市编号")
     create_time = models.DateTimeField(null=False, auto_now_add=True, verbose_name="店铺创建时间")
     description = models.CharField(max_length=256, null=False, default="", verbose_name="店铺描述")
     inviter_phone = models.CharField(max_length=32, null=False, default="", verbose_name="推荐人手机号")
@@ -48,8 +48,6 @@ class Shop(models.Model, TimeBaseMixin):
         default=ShopPayActive.YES,
         verbose_name="是否开通线上支付,1:是,0:否",
     )
-    longitude = models.DecimalField(max_digits=10, decimal_places=6, verbose_name="经度")
-    latitude = models.DecimalField(max_digits=10, decimal_places=6, verbose_name="纬度")
 
     class Meta:
         db_table = "shop"

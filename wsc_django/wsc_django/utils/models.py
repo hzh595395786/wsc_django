@@ -1,3 +1,6 @@
+"""全局的基本模型类"""
+
+
 from django.db import models
 
 class TimeBaseMixin:

@@ -13,24 +13,30 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url, include
+from django.urls import path, include
 from django.contrib import admin
+from rest_framework.routers import DefaultRouter
 
 urlpatterns = [
-    # url(r'^admin/', admin.site.urls),
-    url(r'', include('config.urls')),
-    url(r'', include('customer.urls')),
-    url(r'', include('dashboard.urls')),
-    url(r'', include('delivery.urls')),
-    url(r'', include('order.urls')),
-    url(r'', include('payment.urls')),
-    url(r'', include('printer.urls')),
-    url(r'', include('product.urls')),
-    url(r'', include('promotion.urls')),
-    url(r'', include('shop.urls')),
-    url(r'', include('staff.urls')),
-    url(r'', include('storage.urls')),
-    url(r'', include('user.urls')),
-    url(r'', include('ws.urls')),
-
+    # path(r'^admin/$', admin.site.urls),
+    path(r'', include('config.urls')),
+    path(r'', include('customer.urls')),
+    path(r'', include('dashboard.urls')),
+    path(r'', include('delivery.urls')),
+    path(r'', include('order.urls')),
+    path(r'', include('payment.urls')),
+    path(r'', include('printer.urls')),
+    path(r'', include('product.urls')),
+    path(r'', include('promotion.urls')),
+    path(r'', include('shop.urls')),
+    path(r'', include('staff.urls')),
+    path(r'', include('storage.urls')),
+    path(r'', include('user.urls')),
+    path(r'', include('ws.urls')),
 ]
+
+# 自带的API web
+router = DefaultRouter()
+urlpatterns += router.urls
+
+
