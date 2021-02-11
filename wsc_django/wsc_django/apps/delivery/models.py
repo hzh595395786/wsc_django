@@ -5,8 +5,8 @@ from django.db import models
 # Create your models here.
 from shop.models import Shop
 from wsc_django.utils.models import TimeBaseMixin
-from wsc_django.apps.order.constant import OrderDeliveryMethod
-from .constant import (
+from order.constant import OrderDeliveryMethod
+from delivery.constant import (
     DeliveryType,
 )
 

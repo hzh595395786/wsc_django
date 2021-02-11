@@ -1,4 +1,3 @@
-import re
 from rest_framework import serializers
 from django.db import transaction
 
@@ -6,23 +5,24 @@ from config.services import create_receipt_by_shop
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
 from shop.services import create_shop
-from shop.models import Shop
 from staff.services import create_super_admin_staff
+from staff.serializers import StaffDetailSerializer
+from wsc_django.utils.validators import mobile_validator
 
 
-class ShopCreateSerializer(serializers.ModelSerializer):
+class ShopCreateSerializer(serializers.Serializer):
     """创建商铺序列化器类"""
 
-    class Meta:
-        model = Shop
-        fields = (
-            'shop_name', 'shop_img', 'shop_province','shop_city','shop_county','shop_address','description','inviter_phone'
-        )
-
-    def validate_inviter_phone(self, value):
-        if not re.match(r'1[3-9]\d{9}', value):
-            raise serializers.ValidationError("推荐人手机号格式不正确")
-        return value
+    id = serializers.IntegerField(read_only=True, label="商铺id")
+    shop_code = serializers.CharField(read_only=True, label="商铺code")
+    shop_name = serializers.CharField(required=True, max_length=128, label="商铺名称")
+    shop_img = serializers.CharField(required=True, max_length=300, label="商铺logo")
+    shop_province = serializers.CharField(required=True, label="商铺省份编号")
+    shop_city = serializers.CharField(required=True, label="商铺城市编号")
+    shop_county = serializers.CharField(required=True, label="商铺区编号")
+    shop_address = serializers.CharField(required=True, max_length=100, label="详细地址")
+    description = serializers.CharField(required=True, max_length=200, label="商铺描述")
+    inviter_phone = serializers.CharField(required=True, validators=[mobile_validator], label="推荐人手机号")
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -40,10 +40,11 @@ class ShopCreateSerializer(serializers.ModelSerializer):
                 create_pick_period_line(delivery_config, "17:00", "18:00")
                 create_pick_period_line(delivery_config, "21:00", "22:00")
                 # 创建默认商品分组
-                create_default_group_by_shop(shop.id)
+                create_default_group_by_shop(shop)
                 # 将店铺创建者创建为超级管理员员工
                 create_super_admin_staff(shop, shop.super_admin)
             except Exception as e:
+                print(e)
                 # 回滚到保存点
                 transaction.savepoint_rollback(save_id)
                 raise
@@ -52,3 +53,17 @@ class ShopCreateSerializer(serializers.ModelSerializer):
         return shop
 
 
+class ShopDetailSerializer(serializers.Serializer):
+    """商铺详情序列化器"""
+
+    id = serializers.IntegerField(read_only=True, source="shop_id", label="商铺id")
+    shop_name = serializers.CharField(label="商铺名称")
+    shop_img = serializers.CharField(label="商铺logo")
+    shop_province = serializers.CharField(label="商铺省份编号")
+    shop_city = serializers.CharField(label="商铺城市编号")
+    shop_county = serializers.CharField(label="商铺区编号")
+    shop_address = serializers.CharField(label="详细地址")
+    description = serializers.CharField(label="商铺描述")
+    create_time = serializers.DateTimeField(label="商铺创建时间")
+    status = serializers.CharField(label="商铺状态")
+    create_user = StaffDetailSerializer(read_only=True, label="商铺创建人信息")

@@ -27,7 +27,7 @@ class StaffPermission:
 class StaffApplyStatus:
     """员工申请状态"""
 
-    UNAPPlY = -1 # 未申请
+    UNAPPlY = 0 # 未申请
     APPLYING = 1 # 申请中
     PASS = 2 # 已通过
 

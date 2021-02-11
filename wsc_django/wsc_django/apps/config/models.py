@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 from shop.models import Shop
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from config.constant import (
     PrinterType,
     PrinterTemp,
     PrinterAutoPrint,

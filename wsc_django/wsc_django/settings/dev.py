@@ -14,10 +14,12 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UTILS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 #设置python导包环境
 import sys
 sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
+sys.path.insert(1, UTILS_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -65,6 +67,8 @@ INSTALLED_APPS = [
     'storage.apps.StorageConfig',
     'user.apps.UserConfig',
     'ws.apps.WsConfig',
+    # 测试用
+    'demo.apps.DemoConfig',
 ]
 
 # 中间件
@@ -76,7 +80,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'wsc_django.xMiddleware.middleware.MyMiddleware',
+    'wsc_django.xMiddleware.middleware.MyMiddleware', # 测试使用，跳过登录
+    'wsc_django.xMiddleware.middleware.ConfigMiddleware', # 请求前和响应后进行一些配置
 ]
 
 ROOT_URLCONF = 'wsc_django.urls'
@@ -115,7 +120,14 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
-    }
+    },
+    "verify_codes": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/2",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
 }
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "session"
@@ -174,3 +186,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# 腾讯云短信
+TENCENT_SMS_APPID = ""
+TENCENT_SMS_APPKEY = ""
+# 云片短信
+YUNPIAN_SYSTEM_APIKEY = ""

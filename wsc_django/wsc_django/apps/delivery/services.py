@@ -24,7 +24,7 @@ def create_pick_period_line(
     :return:
     """
     period_line = PickPeriodConfigLine.objects.create(
-        delivery_config, from_time, to_time
+        delivery_config=delivery_config, from_time=from_time, to_time=to_time
     )
     period_line.save()
     return period_line

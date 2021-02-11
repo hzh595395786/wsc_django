@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 from shop.models import Shop
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from product.constant import (
     ProductStatus,
     ProductGroupDefault
 )
@@ -56,10 +56,10 @@ class ProductGroup(models.Model, TimeBaseMixin):
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")
     name = models.CharField(max_length=32, null=False, verbose_name="商品分组名称")
-    description = models.CharField(max_length=128, null=False, verbose_name="商品分组描述")
-    parent = models.ForeignKey('self', on_delete=models.CASCADE,verbose_name="该商品分组的父级ID")
-    sort = models.IntegerField(verbose_name="商品分组排序")
-    level = models.SmallIntegerField(verbose_name="商品分组级别")
+    description = models.CharField(max_length=128, default="无", verbose_name="商品分组描述")
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE,verbose_name="该商品分组的父级ID")
+    sort = models.IntegerField(null=True, verbose_name="商品分组排序")
+    level = models.SmallIntegerField(null=True, verbose_name="商品分组级别")
     default = models.SmallIntegerField(
         null=False,
         default=ProductGroupDefault.NO,

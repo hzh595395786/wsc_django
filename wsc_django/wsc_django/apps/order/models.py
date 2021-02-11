@@ -7,7 +7,7 @@ from customer.models import Customer
 from delivery.models import Delivery
 from shop.models import Shop
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from order.constant import (
     OrderDeliveryMethod,
     OrderStatus,
     OrderPayType,

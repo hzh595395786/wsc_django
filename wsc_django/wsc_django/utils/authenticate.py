@@ -1,14 +1,14 @@
-"""加密验证相关"""
+"""验证相关"""
 import binascii
 from Crypto.Cipher import DES
-from rest_framework.authentication import BaseAuthentication
+from django.contrib.auth.backends import ModelBackend
 
 
-class WSCPermission(BaseAuthentication):
+class WSCAuthenticate(ModelBackend):
     """微商城权限验证"""
 
-    def has_permission(self, request, views):
-        sign = request.get("sign")
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        sign = request.data.get("sign")
         key = SimpleEncrypt.decrypt(sign)
         key_list = key.split("@")
         params = ("passport_id", "timestamp")

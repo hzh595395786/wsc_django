@@ -4,7 +4,7 @@ from django.db import models
 from shop.models import Shop
 from user.models import User
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from staff.constant import (
     StaffStatus,
     StaffApplyStatus,
     StaffApplyExpired,
@@ -23,9 +23,9 @@ class Staff(models.Model, TimeBaseMixin):
         default=StaffStatus.NORMAL,
         verbose_name="员工状态，0：删除，1：正常",
     )
-    position = models.CharField(max_length=16, verbose_name="员工职位")
-    entry_date = models.DateField(verbose_name="员工入职时间")
-    remark = models.CharField(max_length=32, verbose_name="备注")
+    position = models.CharField(max_length=16, default="无", verbose_name="员工职位")
+    entry_date = models.DateField(auto_now_add=True, verbose_name="员工入职时间")
+    remark = models.CharField(max_length=32,default="", verbose_name="备注")
 
     class Meta:
         db_table = "staff"
@@ -41,7 +41,7 @@ class StaffApply(models.Model, TimeBaseMixin):
     status = models.SmallIntegerField(
         null=False,
         default=StaffApplyStatus.APPLYING,
-        verbose_name="申请状态,-1:未申请，1；申请中，2：已通过"
+        verbose_name="申请状态,0:未申请，1；申请中，2：已通过"
     )
     expired = models.SmallIntegerField(
         null=False,

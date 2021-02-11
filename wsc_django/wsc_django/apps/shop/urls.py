@@ -5,5 +5,5 @@ from django.urls import path
 from shop import views
 
 urlpatterns = [
-    path('shop', views.ShopCreateView.as_view())
+    path('shop/', views.ShopView.as_view()) # 商铺创建和详情
 ]

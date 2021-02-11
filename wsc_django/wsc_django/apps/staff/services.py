@@ -1,9 +1,11 @@
 from shop.models import Shop
 from user.models import User
-from staff.models import Staff
+from staff.models import Staff, StaffApply
 from staff.constant import (
     StaffPermission,
     StaffRole,
+    StaffStatus,
+    StaffApplyExpired,
 )
 
 
@@ -28,3 +30,40 @@ def create_super_admin_staff(shop: Shop, user: User):
     )
     staff.save()
     return staff
+
+
+def create_staff_apply(staff_apply_info: dict):
+    """创建一条员工申请信息"""
+    staff = StaffApply.objects.create(**staff_apply_info)
+    staff.save()
+    return staff
+
+
+def get_staff_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_delete: bool = True):
+    """
+    通过shop_id和user_id获取员工,不带user信息
+    :param user_id:
+    :param shop_id:
+    :param filter_delete: 过滤删除
+    :return:
+    """
+    staff_query = Staff.objects.filter(shop_id=shop_id, user_id=user_id)
+    if filter_delete:
+        staff_query = staff_query.filter(status=StaffStatus.NORMAL)
+    staff = staff_query.first()
+    return staff
+
+
+def get_staff_apply_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_expired: bool = True):
+    """
+    通过店铺ID和用户ID获取一个人的最新员工申请记录
+    :param shop_id:
+    :param user_id:
+    :param filter_expired: 过滤过期
+    :return:
+    """
+    staff_apply_query = StaffApply.objects.filter(shop_id=shop_id, user_id=user_id)
+    if filter_expired:
+        staff_apply_query = staff_apply_query.filter(expired=StaffApplyExpired.NO)
+    staff_apply = staff_apply_query.first()
+    return staff_apply

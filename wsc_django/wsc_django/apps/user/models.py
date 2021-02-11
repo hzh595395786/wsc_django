@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from user.constant import (
     Sex
 )
 

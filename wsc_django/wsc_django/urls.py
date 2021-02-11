@@ -33,6 +33,7 @@ urlpatterns = [
     path(r'', include('storage.urls')),
     path(r'', include('user.urls')),
     path(r'', include('ws.urls')),
+    path(r'', include('demo.urls')),
 ]
 
 # 自带的API web

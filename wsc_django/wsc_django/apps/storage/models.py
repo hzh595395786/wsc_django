@@ -5,7 +5,7 @@ from product.models import Product
 from shop.models import Shop
 from user.models import User
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from storage.constant import (
     ProductStorageRecordOperatorType,
     ProductStorageRecordType,
     ProductStorageRecordStatus,

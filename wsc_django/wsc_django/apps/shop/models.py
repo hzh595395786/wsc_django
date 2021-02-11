@@ -1,10 +1,9 @@
 from django.db import models
 
-
 # Create your models here.
 from user.models import User
 from wsc_django.utils.models import TimeBaseMixin
-from .constant import (
+from shop.constant import (
     ShopStatus,
     ShopVerifyActive,
     ShopVerifyType,
