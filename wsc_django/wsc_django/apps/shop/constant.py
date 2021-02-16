@@ -62,3 +62,4 @@ class ShopMpVerifyType:
     VERIFY_BUT_NOT_NAME = 4  # 已认证但未通过名称认证
     VERIFY_BUT_NOT_NAME_BUT_SINA = 5  # 已认证但未通过名称认证,但通过了新浪微博认证
     VERIFY_BUT_NOT_NAME_BUT_T_QQ = 6  # 已认证但未通过名称认证,但通过了腾讯微博认证
+    

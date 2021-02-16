@@ -67,3 +67,20 @@ def get_staff_apply_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_ex
         staff_apply_query = staff_apply_query.filter(expired=StaffApplyExpired.NO)
     staff_apply = staff_apply_query.first()
     return staff_apply
+
+
+def list_staff_by_user_id(user_id: int, roles: int = None, filter_delete: bool = True):
+    """
+    查询这个用户在所有店铺的员工信息
+    :param user_id:
+    :param roles:
+    :param filter_delete: 过滤删除
+    :return:
+    """
+    staff_list_query = Staff.objects.filter(user_id=user_id)
+    if filter_delete:
+        staff_list_query = staff_list_query.filter(status=StaffStatus.NORMAL)
+    if roles:
+        staff_list_query = staff_list_query.extra(where=['roles & 1'])
+    staff_list = staff_list_query.all()
+    return staff_list

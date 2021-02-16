@@ -66,3 +66,17 @@ def get_shop_by_shop_id(shop_id: int, filter_close: bool = True):
         shop = shop.exclude(status=ShopStatus.CLOSED)
     shop = shop.first()
     return shop
+
+
+def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True):
+    """
+    通过ship_id列表查询店铺列表
+    :param shop_ids:
+    :param filter_close:过滤关闭
+    :return:
+    """
+    shop_list_query = Shop.objects.filter(id__in=shop_ids)
+    if filter_close:
+        shop_list_query = shop_list_query.exclude(status=ShopStatus.CLOSED)
+    shop_list = shop_list_query.all()
+    return shop_list

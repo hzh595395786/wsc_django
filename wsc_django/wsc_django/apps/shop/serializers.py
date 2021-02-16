@@ -10,6 +10,11 @@ from staff.serializers import StaffDetailSerializer
 from wsc_django.utils.validators import mobile_validator
 
 
+{
+    "id": "shop_id",
+}
+
+
 class ShopCreateSerializer(serializers.Serializer):
     """创建商铺序列化器类"""
 
@@ -56,7 +61,7 @@ class ShopCreateSerializer(serializers.Serializer):
 class ShopDetailSerializer(serializers.Serializer):
     """商铺详情序列化器"""
 
-    id = serializers.IntegerField(read_only=True, source="shop_id", label="商铺id")
+    shop_id = serializers.IntegerField(read_only=True, source="id", label="商铺id")
     shop_name = serializers.CharField(label="商铺名称")
     shop_img = serializers.CharField(label="商铺logo")
     shop_province = serializers.CharField(label="商铺省份编号")
@@ -65,5 +70,19 @@ class ShopDetailSerializer(serializers.Serializer):
     shop_address = serializers.CharField(label="详细地址")
     description = serializers.CharField(label="商铺描述")
     create_time = serializers.DateTimeField(label="商铺创建时间")
-    status = serializers.CharField(label="商铺状态")
+    shop_status = serializers.IntegerField(source="status", label="商铺状态")
     create_user = StaffDetailSerializer(read_only=True, label="商铺创建人信息")
+
+
+class ShopListSerializer(serializers.Serializer):
+    """商铺列表序列化器类"""
+
+    shop_id = serializers.IntegerField(read_only=True, source="id", label="商铺id")
+    shop_name = serializers.CharField(label="商铺名称")
+    shop_img = serializers.CharField(label="商铺logo")
+    # product_count = serializers.IntegerField(label="店铺商品数量")
+    is_super_admin = serializers.IntegerField(label="该用户是否为该店的超级管理员")
+    shop_status = serializers.IntegerField(source="status", label="商铺状态")
+    cerify_active = serializers.IntegerField(label="店铺是否认证")
+    pay_active = serializers.IntegerField(label="店铺是否开通支付")
+    shop_verify_content = serializers.CharField(label="认证内容")

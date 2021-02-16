@@ -2,17 +2,18 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
+from staff.constant import StaffApplyStatus
 from wsc_django.utils.setup import get_format_response_data
 from staff.models import StaffApply
 from staff.serializers import (
     StaffDetailSerializer,
     StaffApplyCreateSerializer,
+    StaffApplyDetailSerializer,
 )
 from staff.services import (
     get_staff_by_user_id_and_shop_id,
     get_staff_apply_by_user_id_and_shop_id,
 )
-
 
 
 class AdminStaffView(APIView):
@@ -24,10 +25,29 @@ class AdminStaffView(APIView):
 class StaffApplyView(APIView):
     """商城端-提交员工申请&获取申请信息"""
 
+    def get_tmp_class(self, status):
+        """获取一个员工申请模板类"""
+        class TMP:
+            def __init__(self):
+                self.status = status
+        return TMP(status)
+
     def get(self, request):
         user = request.user
         shop = request.shop
-        return Response()
+        staff_apply_query =get_staff_apply_by_user_id_and_shop_id(user.id, shop.id)
+        # 没有审核记录的是超管或者第一次申请的人
+        if not staff_apply_query:
+            # 超管
+            if shop.super_admin_id == user.id:
+                staff_apply_query = self.get_tmp_class(StaffApplyStatus.PASS)
+            else:
+                staff_apply_query = self.get_tmp_class(StaffApplyStatus.UNAPPlY)
+        staff_apply_query.user_info = user
+        serializer = StaffApplyDetailSerializer(staff_apply_query)
+        data = get_format_response_data(serializer.data, True)
+        data["shop_info"] = {"shop_name":shop.shop_name}
+        return Response(data=data)
 
     def post(self, request):
         user = request.user

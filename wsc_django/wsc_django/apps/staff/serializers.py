@@ -3,7 +3,8 @@ from rest_framework import serializers
 
 from staff.models import Staff, StaffApply
 from staff.services import create_staff_apply
-from wsc_django.utils.setup import get_format_response_data
+from user.serializers import UserSerializer
+from wsc_django.utils.constant import DateFormat
 from wsc_django.utils.validators import mobile_validator
 
 
@@ -12,6 +13,14 @@ class StaffDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Staff
+
+
+class StaffApplyDetailSerializer(serializers.Serializer):
+    """员工申请详情序列化器类"""
+    id = serializers.IntegerField(read_only=True, label="员工申请id")
+    status = serializers.IntegerField(label="申请状态")
+    create_time = serializers.DateTimeField(required=False, source="create_at", format=DateFormat.TIME, label="员工申请创建时间")
+    user_info = UserSerializer(label="用户信息")
 
 
 class StaffApplyCreateSerializer(serializers.Serializer):
