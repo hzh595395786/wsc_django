@@ -1,6 +1,3 @@
-import json
-
-from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 from user.models import User
@@ -15,7 +12,7 @@ class MyMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         user = User.objects.get(id=1)
-        request.user = user
+        self.current_user = user
 
 
 class ConfigMiddleware(MiddlewareMixin):

@@ -1,5 +1,5 @@
 """
-拼团相关的路由
+店铺设置相关路由
 """
 from django.urls import path
 

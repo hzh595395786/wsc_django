@@ -48,7 +48,7 @@ def get_staff_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_delete: 
     :return:
     """
     staff_query = Staff.objects.filter(shop_id=shop_id, user_id=user_id)
-    if filter_delete:
+    if staff_query and filter_delete:
         staff_query = staff_query.filter(status=StaffStatus.NORMAL)
     staff = staff_query.first()
     return staff
@@ -63,7 +63,7 @@ def get_staff_apply_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_ex
     :return:
     """
     staff_apply_query = StaffApply.objects.filter(shop_id=shop_id, user_id=user_id)
-    if filter_expired:
+    if staff_apply_query and filter_expired:
         staff_apply_query = staff_apply_query.filter(expired=StaffApplyExpired.NO)
     staff_apply = staff_apply_query.first()
     return staff_apply
@@ -78,9 +78,9 @@ def list_staff_by_user_id(user_id: int, roles: int = None, filter_delete: bool =
     :return:
     """
     staff_list_query = Staff.objects.filter(user_id=user_id)
-    if filter_delete:
+    if staff_list_query and filter_delete:
         staff_list_query = staff_list_query.filter(status=StaffStatus.NORMAL)
-    if roles:
+    if staff_list_query and roles:
         staff_list_query = staff_list_query.extra(where=['roles & 1'])
     staff_list = staff_list_query.all()
     return staff_list

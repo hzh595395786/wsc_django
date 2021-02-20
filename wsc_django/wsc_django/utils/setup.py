@@ -1,4 +1,5 @@
-"""一些设置"""
+"""一些设置相关"""
+from rest_framework import serializers
 
 
 def get_format_response_data(
@@ -24,3 +25,11 @@ def ReturnedDict_to_dict(data:dict, serializer_data: dict or object):
     for k in serializer_data:
         data[k] = serializer_data[k]
     return data
+
+
+class ConvertDecimalPlacesField(serializers.DecimalField):
+    """将decimal转化为2位输出"""
+
+    def to_representation(self, value):
+        return round(float(value), 2)
+

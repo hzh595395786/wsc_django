@@ -4,14 +4,14 @@ from rest_framework.response import Response
 from django_redis import get_redis_connection
 
 from staff.services import get_staff_by_user_id_and_shop_id
-from wsc_django.utils.permission import WSCStaffPermission
+from wsc_django.utils.permission import WSCAdminPermission
 from demo.serializers import DemoSerializer
 
 
 class DemoView(GenericAPIView):
     """测试使用"""
 
-    permission_classes = [WSCStaffPermission]
+    permission_classes = [WSCAdminPermission]
     serializer_class = DemoSerializer
 
     def get(self, request):

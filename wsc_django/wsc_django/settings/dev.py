@@ -80,8 +80,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'wsc_django.xMiddleware.middleware.MyMiddleware', # 测试使用，跳过登录
-    'wsc_django.xMiddleware.middleware.ConfigMiddleware', # 请求前和响应后进行一些配置
+    # 'wsc_django.xMiddleware.middleware.MyMiddleware', # 测试使用，跳过登录
+    # 'wsc_django.xMiddleware.middleware.ConfigMiddleware', # 请求前和响应后进行一些配置
 ]
 
 ROOT_URLCONF = 'wsc_django.urls'
@@ -186,6 +186,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'wsc_django.utils.exceptions.wsc_exception_handler', # 异常处理
+}
 
 # 腾讯云短信
 TENCENT_SMS_APPID = ""

@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from rest_framework.generics import CreateAPIView
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_redis import get_redis_connection
 
@@ -7,13 +7,15 @@ from user.serializers import MallUserSerializer
 from wsc_django.utils.sms import gen_sms_code, YunPianSms, TencentSms
 
 
-class MallUserView(CreateAPIView):
+class MallUserView(APIView):
     """商城-登录注册"""
-    """
-    注册登录省略
-    """
 
-    pass
+    # 测试使用，跳过登录,设置cookies
+    def get(self, request):
+        response = Response()
+        res = response.set_cookie("wsc_shop_id", 1)
+        print(res)
+        return response
 
 
 class MallSMSCodeView(APIView):

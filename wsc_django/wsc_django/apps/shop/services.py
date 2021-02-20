@@ -48,7 +48,7 @@ def get_shop_by_shop_code(shop_code: str, only_normal: bool = True):
     :return:
     """
     shop = Shop.objects.filter(shop_code=shop_code)
-    if only_normal:
+    if shop and only_normal:
         shop = shop.filter(status=ShopStatus.NORMAL)
     shop = shop.first()
     return shop
@@ -62,7 +62,7 @@ def get_shop_by_shop_id(shop_id: int, filter_close: bool = True):
     :return:
     """
     shop = Shop.objects.filter(id=shop_id)
-    if filter_close:
+    if shop and filter_close:
         shop = shop.exclude(status=ShopStatus.CLOSED)
     shop = shop.first()
     return shop
@@ -76,7 +76,7 @@ def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True):
     :return:
     """
     shop_list_query = Shop.objects.filter(id__in=shop_ids)
-    if filter_close:
+    if shop_list_query and filter_close:
         shop_list_query = shop_list_query.exclude(status=ShopStatus.CLOSED)
     shop_list = shop_list_query.all()
     return shop_list

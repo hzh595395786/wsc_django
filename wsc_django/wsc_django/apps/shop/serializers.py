@@ -10,11 +10,6 @@ from staff.serializers import StaffDetailSerializer
 from wsc_django.utils.validators import mobile_validator
 
 
-{
-    "id": "shop_id",
-}
-
-
 class ShopCreateSerializer(serializers.Serializer):
     """创建商铺序列化器类"""
 
@@ -30,7 +25,7 @@ class ShopCreateSerializer(serializers.Serializer):
     inviter_phone = serializers.CharField(required=True, validators=[mobile_validator], label="推荐人手机号")
 
     def create(self, validated_data):
-        user = self.context['request'].user
+        user = self.context['user']
         with transaction.atomic():
             # 创建一个保存点
             save_id = transaction.savepoint()

@@ -23,7 +23,7 @@ class ProductStorageRecord(models.Model, TimeBaseMixin):
         verbose_name="操作人类型,1:员工,2:客户",
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, verbose_name="对应的用户对象")
-    create_time = models.DateTimeField(null=False, verbose_name="货品库存变更记录创建时间")
+    create_time = models.DateTimeField(null=False,auto_now_add=True, verbose_name="货品库存变更记录创建时间")
     type = models.SmallIntegerField(
         null=False,
         default=ProductStorageRecordType.MALL_SALE,
