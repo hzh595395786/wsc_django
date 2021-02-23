@@ -1,15 +1,32 @@
 from rest_framework import serializers
 
+from user.models import User
+from user.services import create_user, create_user_openid
 from wsc_django.utils.constant import DateFormat
 
 
-class MallUserSerializer(serializers.Serializer):
-    """商城端登录注册"""
-    """
-    登录或注册成功后，在request中设置当前用户
-    """
+class UserCreateSerializer(serializers.ModelSerializer):
+    """创建用户序列化器类"""
 
-    pass
+    class Meta:
+        model = User
+
+    def create(self, validated_data):
+        user = create_user(validated_data)
+        self.context['request'].user = user
+        return user
+
+
+class UserOpenidSerializer(serializers.Serializer):
+    """用户openid序列化器类"""
+
+    user_id = serializers.IntegerField(label="用户id")
+    mp_appid = serializers.CharField(label="公众号appid")
+    wx_openid = serializers.CharField(label="用户openid")
+
+    def create(self, validated_data):
+        user_openid = create_user_openid(**validated_data)
+        return user_openid
 
 
 class UserSerializer(serializers.Serializer):

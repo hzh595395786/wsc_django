@@ -14,7 +14,7 @@ from staff.constant import (
 class Staff(models.Model, TimeBaseMixin):
     """员工模型类"""
 
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="员工对应的店铺对象")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="员工对应的商铺对象")
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, verbose_name="员工对应的用户对象")
     roles = models.SmallIntegerField(null=False, default=0, verbose_name="角色，二进制运算进行校验")
     permissions = models.BigIntegerField(null=False, default=0, verbose_name="权限，二进制运算进行校验")
@@ -36,7 +36,7 @@ class Staff(models.Model, TimeBaseMixin):
 class StaffApply(models.Model, TimeBaseMixin):
     """员工申请表模型类"""
 
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的商铺对象")
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=False, verbose_name="对应的用户对象")
     status = models.SmallIntegerField(
         null=False,

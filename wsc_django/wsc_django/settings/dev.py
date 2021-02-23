@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+import datetime
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UTILS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -35,6 +37,9 @@ ALLOWED_HOSTS = []
 
 # 告知Django认证系统使用我们自定义的模型类。
 AUTH_USER_MODEL = 'user.User'
+
+# cookies相关
+AUTH_COOKIE_EXPIRE_DAYS = 60*60*24*7
 
 # Application definition
 
@@ -191,8 +196,18 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'wsc_django.utils.exceptions.wsc_exception_handler', # 异常处理
 }
 
+# jwt相关配置
+JWT_AUTH = {
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1), # 有效期
+    'JWT_RESPONSE_PAYLOAD_HANDLER': 'users.utils.jwt_response_payload_handler', # 响应体格式
+}
+
 # 腾讯云短信
 TENCENT_SMS_APPID = ""
 TENCENT_SMS_APPKEY = ""
 # 云片短信
 YUNPIAN_SYSTEM_APIKEY = ""
+
+# 微信公众号相关
+MP_APPID = 'wx819299c9d4c7bd24'
+MP_APPSECRET = '3237f88e4e5427b5ca2405feb7131031'

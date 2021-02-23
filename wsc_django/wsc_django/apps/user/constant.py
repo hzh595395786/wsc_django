@@ -5,7 +5,7 @@ USER_OUTPUT_CONSTANT = (
     "sex",
     "phone",
     "birthday",
-    "passport_id",
+    # "passport_id",
 )
 
 

@@ -7,7 +7,7 @@ from product import views
 
 
 urlpatterns_admin = [
-    path('admin/product/', views.ProductView.as_view()), # 货品创建&单个货品详情
+    path('admin/product/', views.AdminProductView.as_view()), # 货品创建&单个货品详情
 ]
 
 urlpatterns_mall = [

@@ -1,16 +1,21 @@
 from django.http import JsonResponse
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_redis import get_redis_connection
+from wechatpy.oauth import WeChatOAuth
 
-from user.serializers import MallUserSerializer
+from user.serializers import UserCreateSerializer, UserOpenidSerializer
+from user.services import get_user_by_wx_unionid, get_openid_by_user_and_appid
+from user.utils import jwt_response_payload_handler
+from wsc_django.settings.dev import MP_APPSECRET, MP_APPID
 from wsc_django.utils.sms import gen_sms_code, YunPianSms, TencentSms
+from wsc_django.utils.views import UserBaseView, MallBaseView
 
 
-class MallUserView(APIView):
-    """商城-登录注册"""
+class AdminUserView(UserBaseView):
+    """后台-用户-登录注册"""
 
-    # 测试使用，跳过登录,设置cookies
     def get(self, request):
         response = Response()
         res = response.set_cookie("wsc_shop_id", 1)
@@ -18,8 +23,76 @@ class MallUserView(APIView):
         return response
 
 
+class MallUserView(MallBaseView):
+    """商城-用户-登录注册"""
+
+    def post(self, request, shop_code):
+        code = request.data.get("code", None)
+        if not code:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        self._set_current_shop(request, shop_code)
+        shop_appid = MP_APPID
+        shop_appsecret = MP_APPSECRET
+        wechat_oauth = WeChatOAuth(
+            app_id=shop_appid,
+            secret=shop_appsecret,
+            redirect_uri="",
+            scope="snsapi_userinfo",
+        )
+        try:
+            wechat_oauth.fetch_access_token(code)
+            user_info = wechat_oauth.get_user_info()
+        except:
+            return self.send_fail(error_text='获取微信授权失败')
+        """
+           user_info = {
+                   "openid": "oMZbfv3iy12L1q1XGWpkko_P_YPI",
+                   "nickname": "hpf",
+                   "sex": 1,
+                   "language": "zh_CN",
+                   "city": "武汉",
+                   "province": "湖北",
+                   "country": "中国",
+                   "headimgurl": "http://thirdwx.qlogo.cn/mmopen/vi_32/yctGCWkz1jI2ybfVe12KmrXIb9R89dfgnoribX9sG75hBPJQlsK30fnib9r4nKELHcpcXAibztiaHH3jz65f03ibOlg/132",
+                   "privilege": [],
+                   "unionid": "oIWUauOLaT50pWKUeNKhKP6W0WIU"
+               }
+        """
+        user_info["headimgurl"] = user_info["headimgurl"].replace("http://", "https://")
+        user = get_user_by_wx_unionid(user_info.get("unionid"))
+        if not user:
+            new_user_info = {
+                "phone": user_info.get('phone'),
+                "sex": user_info.get('sex'),
+                "nickname": user_info.get("nickname"),
+                "realname": user_info.get("realname"),
+                "head_image_url": user_info.get("headimgurl"),
+                "wx_unionid": user_info.get("unionid"),
+                "wx_openid": user_info.get("openid"),
+                "wx_country": user_info.get("country"),
+                "wx_province": user_info.get("province"),
+                "wx_city": user_info.get("city"),
+            }
+            user_serializer = UserCreateSerializer(data=new_user_info)
+            user_serializer.save()
+            user = request.user
+        # 添加用户的openid
+        ret, user_openid = get_openid_by_user_and_appid(user.id, shop_appid)
+        if not ret:
+            info = {
+                'user_id': user.id,
+                'mp_appid': shop_appid,
+                'wx_openid': user_info.get("openid"),
+            }
+            user_openid_serializer = UserOpenidSerializer(info)
+            user_openid_serializer.save()
+        token = self._set_current_user(user)
+        response_data = jwt_response_payload_handler(token, user, request)
+        return self.send_success(data=response_data)
+
+
 class MallSMSCodeView(APIView):
-    """商城-短信验证接口"""
+    """商城-用户-短信验证接口"""
 
     def post(self, request, mobile):
         if self.request.META.get('HTTP_X_FORWARDED_FOR'):

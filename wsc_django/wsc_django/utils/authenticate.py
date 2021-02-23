@@ -1,10 +1,19 @@
 """验证相关"""
 import binascii
 from Crypto.Cipher import DES
-from django.contrib.auth.backends import ModelBackend
+from rest_framework.authentication import BaseAuthentication
+from rest_framework import exceptions
 
 
-class WSCAuthenticate(ModelBackend):
+class WSCIsLoginAuthenticate(BaseAuthentication):
+    """微商城是否登录验证"""
+
+    def authenticate(self, request):
+        if not request.current_user:
+            raise exceptions.AuthenticationFailed('用户未登录')
+
+
+class WSCAuthenticate(BaseAuthentication):
     """微商城权限验证"""
 
     def authenticate(self, request, username=None, password=None, **kwargs):
@@ -13,10 +22,10 @@ class WSCAuthenticate(ModelBackend):
         key_list = key.split("@")
         params = ("passport_id", "timestamp")
         if len(key_list) != len(params):
-            return False
+            return None
         for index, v in enumerate(params):
             if key_list[index] != str(request.get(v)):
-                return False
+                return None
 
 
 class EncryptBase:

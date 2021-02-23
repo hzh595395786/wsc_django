@@ -11,8 +11,11 @@ from wsc_django.utils.validators import mobile_validator
 class StaffDetailSerializer(serializers.ModelSerializer):
     """员工序列化器类"""
 
+    staff_personal_data = UserSerializer(label="员工个人信息")
+
     class Meta:
         model = Staff
+        exclude = ('user', 'shop', 'status')
 
 
 class StaffApplyDetailSerializer(serializers.Serializer):
@@ -33,7 +36,7 @@ class StaffApplyCreateSerializer(serializers.Serializer):
     birthday = serializers.DateField(write_only=True, required=False, label="生日")
 
     def validate(self, attrs):
-        user = self.context["request"].user
+        user = self.context["self"].current_user
         sms_code = attrs.pop("sms_code")
         phone = attrs["phone"]
         redis_conn = get_redis_connection('verify_codes')
@@ -46,8 +49,8 @@ class StaffApplyCreateSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        shop = self.context["request"].shop
+        user = self.context["self"].current_user
+        shop = self.context["self"].current_shop
         user.realname = validated_data.pop("realname")
         user.phone = validated_data.pop("phone")
         if validated_data.get("birthday"):

@@ -16,13 +16,13 @@ from wsc_django.utils.views import StaffBaseView, MallBaseView
 
 
 class AdminStaffView(StaffBaseView):
-    """商城端-员工增删改查"""
+    """商城端-员工-员工增删改查"""
 
     serializer_class = StaffDetailSerializer
 
 
 class StaffApplyView(MallBaseView):
-    """商城端-提交员工申请&获取申请信息"""
+    """商城端-员工-提交员工申请&获取申请信息"""
 
     def get_tmp_class(self, status):
         """获取一个员工申请模板类"""
@@ -32,11 +32,9 @@ class StaffApplyView(MallBaseView):
         return TMP(status)
 
     def get(self, request, shop_code):
-        user = request.user
+        user = self.current_user
         self._set_current_shop(request, shop_code)
-        current_shop = request.shop
-        if not current_shop:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        current_shop = self.current_shop
         staff_apply_query = get_staff_apply_by_user_id_and_shop_id(user.id, current_shop.id)
         # 没有审核记录的是超管或者第一次申请的人
         if not staff_apply_query:
@@ -50,11 +48,9 @@ class StaffApplyView(MallBaseView):
         return self.send_success(data=serializer.data, shop_info={"shop_name":current_shop.shop_name})
 
     def post(self, request, shop_code):
-        user = request.user
+        user = self.current_user
         self._set_current_shop(request, shop_code)
-        current_shop = request.shop
-        if not current_shop:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        current_shop = self.current_shop
         # 验证员工是否存在
         staff = get_staff_by_user_id_and_shop_id(user.id, current_shop.id)
         if staff:
@@ -63,7 +59,7 @@ class StaffApplyView(MallBaseView):
         staff_apply = get_staff_apply_by_user_id_and_shop_id(user.id, current_shop.id)
         if staff_apply:
             return self.send_fail(error_text="已提交申请，无需重复提交")
-        serializer = StaffApplyCreateSerializer(data=request.data, context={'request':request})
+        serializer = StaffApplyCreateSerializer(data=request.data, context={'self':self})
         if not serializer.is_valid():
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         staff_apply = serializer.save()

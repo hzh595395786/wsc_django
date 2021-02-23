@@ -1,5 +1,8 @@
 from uuid import uuid4
 
+from django.db.models import Count
+
+from product.constant import ProductStatus
 from shop.models import Shop
 from user.models import User
 from shop.constant import (
@@ -80,3 +83,20 @@ def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True):
         shop_list_query = shop_list_query.exclude(status=ShopStatus.CLOSED)
     shop_list = shop_list_query.all()
     return shop_list
+
+
+def get_shop_product_species_count_by_shop_ids(shop_ids: list):
+    """
+    通过店铺id列表查找商铺的货品种类数量
+    :param shop_ids: 商铺id列表
+    :return:
+    """
+    shop_product_count = (
+        Shop.objects.filter(id__in=shop_ids).
+        exclude(product__status=ProductStatus.DELETED).
+        annotate(product_name=Count("product"))
+    )
+    shop_product_count_dict = {
+        shop.id:shop.product_name for shop in shop_product_count
+    }
+    return shop_product_count_dict

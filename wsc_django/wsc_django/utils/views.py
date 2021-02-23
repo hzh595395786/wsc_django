@@ -2,11 +2,15 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_jwt.authentication import JSONWebTokenAuthentication
+from rest_framework_jwt.settings import api_settings
 
 from shop.services import get_shop_by_shop_id, get_shop_by_shop_code
 from staff.constant import StaffRole, StaffPermission
 from staff.services import get_staff_by_user_id_and_shop_id
 from user.models import User
+from wsc_django.utils.authenticate import WSCIsLoginAuthenticate
+from wsc_django.utils.permission import StaffRolePermission, WSCStaffPermission
 
 
 class GlobalBaseView(APIView):
@@ -63,16 +67,37 @@ class GlobalBaseView(APIView):
 class UserBaseView(GlobalBaseView):
     """用户的基类，用来处理认证"""
 
+    authentication_classes = (WSCIsLoginAuthenticate, )
+
     def initialize_request(self, request, *args, **kwargs):
-        # todo 设置当前用户
-        # 仅测试使用下代码
-        user = User.objects.get(id=1)
-        request.user = user
-        return super().initialize_request(request, *args, **kwargs)
+        request = super().initialize_request(request, *args, **kwargs)
+        user = self._get_current_user(request)
+        self.current_user = user
+        # 用于WSCIsLoginAuthenticate中进行验证
+        request.current_user = self.current_user
+        return request
+
+    def _get_current_user(self, request):
+        jwt = JSONWebTokenAuthentication()
+        res = jwt.authenticate(request)
+        if res:
+            user = res[0]
+        else:
+            user = None
+        return user
+
+    def _set_current_user(self, user: User):
+        jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
+        jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
+        payload = jwt_payload_handler(user)
+        token = jwt_encode_handler(payload)
+        return token
 
 
 class StaffBaseView(UserBaseView):
     """员工的基类，用来处理是否有效员工"""
+
+    permission_classes = (WSCStaffPermission,)
     staff_roles = StaffRole
     staff_permissions = StaffPermission
 
@@ -81,16 +106,32 @@ class StaffBaseView(UserBaseView):
         wsc_shop_id = request.COOKIES.get("wsc_shop_id", 0)
         # 从cookie中获取shop_id进行查询
         shop = get_shop_by_shop_id(int(wsc_shop_id))
-        request.shop = shop
-        # todo user的取得后续还需修改
-        current_staff = get_staff_by_user_id_and_shop_id(request.user.id, request.shop.id)
+        self.current_shop = shop
+        current_staff = None
+        if shop and self.current_user:
+            current_staff = get_staff_by_user_id_and_shop_id(self.current_user.id, self.current_shop.id)
         self.current_staff = current_staff
         return request
+
+    @classmethod
+    def permission_required(cls, permission_list: list):
+        """验证员工权限的装饰器"""
+        def inner(func):
+            def wrapper(self, *args, **kwargs):
+                for permission in permission_list:
+                    if self.current_staff.permissions & permission == 0:
+                        return Response(status=status.HTTP_403_FORBIDDEN)
+                return func(self, *args, **kwargs)
+
+            return wrapper
+
+        return inner
 
 
 class AdminBaseView(StaffBaseView):
     """管理员的基类"""
-    pass
+
+    permission_classes = (WSCStaffPermission, StaffRolePermission,)
 
 
 class MallBaseView(UserBaseView):
@@ -99,5 +140,5 @@ class MallBaseView(UserBaseView):
     def _set_current_shop(self, request, shop_code):
         """设置当前商铺"""
         shop = get_shop_by_shop_code(shop_code)
-        request.shop = shop
+        self.current_shop = shop
 

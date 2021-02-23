@@ -34,8 +34,8 @@ class ProductCreateSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(read_only=True, label="创建货品的用户id")
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        shop = self.context["request"].shop
+        user = self.context["self"].current_user
+        shop = self.context["self"].current_shop
         storage = validated_data.pop("storage")
         product_pictures = validated_data.pop("pictures", None)
         with transaction.atomic():
@@ -68,8 +68,8 @@ class ProductCreateSerializer(serializers.Serializer):
         return product
 
 
-class ProductDetailSerializer(serializers.Serializer):
-    """货品详情序列化器类"""
+class AdminProductSerializer(serializers.Serializer):
+    """后台货品详情序列化器类"""
 
     product_id = serializers.IntegerField(source="id", label="货品名")
     group_id = serializers.IntegerField(label="货品分组id")

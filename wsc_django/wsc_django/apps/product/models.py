@@ -36,7 +36,7 @@ class ProductGroup(models.Model, TimeBaseMixin):
 class Product(models.Model, TimeBaseMixin):
     """货品模型类"""
 
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="货品对应的店铺对象")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="货品对应的商铺对象")
     name = models.CharField(max_length=64, null=False, verbose_name="货品名称")
     name_acronym = models.CharField(max_length=64, null=False, verbose_name="货品名称拼音")
     group = models.ForeignKey(ProductGroup, on_delete=models.CASCADE, verbose_name="货品分组ID")
