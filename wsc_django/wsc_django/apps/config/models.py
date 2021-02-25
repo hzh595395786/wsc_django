@@ -2,7 +2,7 @@ from django.db import models
 
 # Create your models here.
 from shop.models import Shop
-from wsc_django.utils.models import TimeBaseMixin
+from wsc_django.utils.models import TimeBaseModel
 from config.constant import (
     PrinterType,
     PrinterTemp,
@@ -12,7 +12,7 @@ from config.constant import (
 )
 
 
-class Printer(models.Model, TimeBaseMixin):
+class Printer(TimeBaseModel):
     """打印机模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, verbose_name="打印机对应店铺")
@@ -49,7 +49,7 @@ class Printer(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
 
 
-class Receipt(models.Model, TimeBaseMixin):
+class Receipt(TimeBaseModel):
     """小票模型类"""
 
     id = models.OneToOneField(
@@ -75,7 +75,7 @@ class Receipt(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
 
 
-class MsgNotify(models.Model, TimeBaseMixin):
+class MsgNotify(TimeBaseModel):
     """消息通知模型类"""
 
     id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE)

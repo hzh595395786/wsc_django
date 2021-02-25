@@ -5,22 +5,25 @@ from rest_framework.views import APIView
 from django_redis import get_redis_connection
 from wechatpy.oauth import WeChatOAuth
 
-from user.serializers import UserCreateSerializer, UserOpenidSerializer
-from user.services import get_user_by_wx_unionid, get_openid_by_user_and_appid
+from customer.services import create_customer
 from user.utils import jwt_response_payload_handler
 from wsc_django.settings.dev import MP_APPSECRET, MP_APPID
 from wsc_django.utils.sms import gen_sms_code, YunPianSms, TencentSms
 from wsc_django.utils.views import UserBaseView, MallBaseView
+from user.serializers import UserCreateSerializer
+from user.interface import get_customer_by_user_id_and_shop_id_interface
+from user.services import (
+    get_user_by_wx_unionid,
+    get_openid_by_user_and_appid,
+    create_user_openid,
+)
 
 
 class AdminUserView(UserBaseView):
     """后台-用户-登录注册"""
 
     def get(self, request):
-        response = Response()
-        res = response.set_cookie("wsc_shop_id", 1)
-        print(res)
-        return response
+        return Response()
 
 
 class MallUserView(MallBaseView):
@@ -31,6 +34,7 @@ class MallUserView(MallBaseView):
         if not code:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         self._set_current_shop(request, shop_code)
+        shop = self.current_shop
         shop_appid = MP_APPID
         shop_appsecret = MP_APPSECRET
         wechat_oauth = WeChatOAuth(
@@ -76,16 +80,19 @@ class MallUserView(MallBaseView):
             user_serializer = UserCreateSerializer(data=new_user_info)
             user_serializer.save()
             user = request.user
-        # 添加用户的openid
         ret, user_openid = get_openid_by_user_and_appid(user.id, shop_appid)
+        # 不存在则添加用户的openid
         if not ret:
             info = {
                 'user_id': user.id,
                 'mp_appid': shop_appid,
                 'wx_openid': user_info.get("openid"),
             }
-            user_openid_serializer = UserOpenidSerializer(info)
-            user_openid_serializer.save()
+            create_user_openid(info)
+        customer = get_customer_by_user_id_and_shop_id_interface(user.id, shop.id)
+        # 新客户则创建客户信息
+        if not customer:
+            create_customer(user.id, shop.id)
         token = self._set_current_user(user)
         response_data = jwt_response_payload_handler(token, user, request)
         return self.send_success(data=response_data)

@@ -1,11 +1,10 @@
 from django.db import models
 
-# Create your models here.
 from order.models import Order
-from wsc_django.utils.models import TimeBaseMixin
+from wsc_django.utils.models import TimeBaseModel
 
 
-class OrderTransaction(models.Model, TimeBaseMixin):
+class OrderTransaction(TimeBaseModel):
     """订单在线支付信息模型类"""
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, null=False, verbose_name="对应订单对象")

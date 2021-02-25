@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 
-from product.services import get_product_with_group_name
+from product.services import get_product_with_group_name, get_product_group_by_id
 from wsc_django.utils.views import AdminBaseView
 from product.serializers import (
     ProductCreateSerializer,
@@ -14,6 +14,10 @@ class AdminProductView(AdminBaseView):
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
     def post(self, request):
+        group_id = request.data.get("group_id", 0)
+        product_group = get_product_group_by_id(self.current_shop.id, group_id)
+        if not product_group:
+            return self.send_fail(error_text="货品分组不存在")
         serializer = ProductCreateSerializer(data=request.data, context={'self':self})
         if not serializer.is_valid():
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)

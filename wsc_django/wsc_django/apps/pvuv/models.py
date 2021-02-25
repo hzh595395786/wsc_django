@@ -4,10 +4,10 @@ from django.db import models
 from product.models import Product
 from shop.models import Shop
 from user.models import User
-from wsc_django.utils.models import TimeBaseMixin
+from wsc_django.utils.models import TimeBaseModel
 
 
-class ProductBrowseRecord(models.Model, TimeBaseMixin):
+class ProductBrowseRecord(TimeBaseModel):
     """货品访问记录模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")

@@ -1,15 +1,14 @@
 from django.db import models
 
-# Create your models here.
 from shop.models import Shop
-from wsc_django.utils.models import TimeBaseMixin
 from product.constant import (
     ProductStatus,
     ProductGroupDefault
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class ProductGroup(models.Model, TimeBaseMixin):
+class ProductGroup(TimeBaseModel):
     """商品分组模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")
@@ -33,7 +32,7 @@ class ProductGroup(models.Model, TimeBaseMixin):
         self.sort = self.id
 
 
-class Product(models.Model, TimeBaseMixin):
+class Product(TimeBaseModel):
     """货品模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="货品对应的商铺对象")
@@ -64,7 +63,7 @@ class Product(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
 
 
-class ProductPicture(models.Model, TimeBaseMixin):
+class ProductPicture(TimeBaseModel):
     """货品轮播图模型类"""
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, null=False, verbose_name="对应货品对象")

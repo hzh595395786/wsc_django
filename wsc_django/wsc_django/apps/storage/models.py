@@ -1,18 +1,17 @@
 from django.db import models
 
-# Create your models here.
 from product.models import Product
 from shop.models import Shop
 from user.models import User
-from wsc_django.utils.models import TimeBaseMixin
 from storage.constant import (
     ProductStorageRecordOperatorType,
     ProductStorageRecordType,
     ProductStorageRecordStatus,
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class ProductStorageRecord(models.Model, TimeBaseMixin):
+class ProductStorageRecord(TimeBaseModel):
     """货品库存变更记录"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")

@@ -1,17 +1,16 @@
 from django.db import models
 
-# Create your models here.
 from user.models import User
-from wsc_django.utils.models import TimeBaseMixin
 from shop.constant import (
     ShopStatus,
     ShopVerifyActive,
     ShopVerifyType,
     ShopPayActive,
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class Shop(models.Model, TimeBaseMixin):
+class Shop(TimeBaseModel):
     """商铺模型类"""
 
     status = models.SmallIntegerField(
@@ -57,3 +56,31 @@ class Shop(models.Model, TimeBaseMixin):
             models.Index(name="ux_shop_code", fields=["shop_code"]),
             models.Index(name="ix_super_admin", fields=["super_admin"]),
         ]
+
+
+class HistoryRealName(TimeBaseModel):
+    """存储店铺创建者的历史真实姓名"""
+
+    id = models.OneToOneField(
+        Shop, on_delete=models.CASCADE, primary_key=True, unique=True, null=False,verbose_name="对应的店铺id"
+    )
+    realname = models.CharField(max_length=32, null=False, verbose_name='历史真实姓名')
+
+    class Meta:
+        db_table = "history_realname"
+        verbose_name = "商铺创建者历史真实姓名"
+        verbose_name_plural = verbose_name
+
+
+class ShopRejectReason(TimeBaseModel):
+    """拒绝的商铺的拒绝理由"""
+
+    id = models.OneToOneField(
+        Shop, on_delete=models.CASCADE, primary_key=True, unique=True, null=False, verbose_name="对应的店铺id"
+    )
+    reject_reason = models.CharField(max_length=256, null=False, default='', verbose_name="拒绝理由")
+
+    class Meta:
+        db_table = "shop_reject_reason"
+        verbose_name = "商铺拒绝理由"
+        verbose_name_plural = verbose_name

@@ -1,17 +1,16 @@
 from django.db import models
 
-# Create your models here.
 from shop.models import Shop
 from user.models import User
-from wsc_django.utils.models import TimeBaseMixin
 from staff.constant import (
     StaffStatus,
     StaffApplyStatus,
     StaffApplyExpired,
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class Staff(models.Model, TimeBaseMixin):
+class Staff(TimeBaseModel):
     """员工模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="员工对应的商铺对象")
@@ -33,7 +32,7 @@ class Staff(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
 
 
-class StaffApply(models.Model, TimeBaseMixin):
+class StaffApply(TimeBaseModel):
     """员工申请表模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的商铺对象")

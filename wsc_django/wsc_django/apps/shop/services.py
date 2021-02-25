@@ -3,7 +3,7 @@ from uuid import uuid4
 from django.db.models import Count
 
 from product.constant import ProductStatus
-from shop.models import Shop
+from shop.models import Shop, HistoryRealName, ShopRejectReason
 from user.models import User
 from shop.constant import (
     ShopStatus,
@@ -41,6 +41,16 @@ def create_shop(shop_info: dict, user: User):
     shop = Shop.objects.create(**shop_info)
     shop.save()
     return shop
+
+
+def create_shop_reject_reason_by_shop_id(shop_id: int, reject_reason: str):
+    """
+    给拒绝的店铺创建一个拒绝理由
+    :param shop_id:
+    :return:
+    """
+    reject_reason = ShopRejectReason.objects.create(id=shop_id, reject_reason=reject_reason)
+    return reject_reason
 
 
 def get_shop_by_shop_code(shop_code: str, only_normal: bool = True):
@@ -100,3 +110,31 @@ def get_shop_product_species_count_by_shop_ids(shop_ids: list):
         shop.id:shop.product_name for shop in shop_product_count
     }
     return shop_product_count_dict
+
+
+def list_shop_by_shop_status(shop_status: int):
+    """
+    查询某一状态的所有店铺
+    :param shop_status:
+    :return:
+    """
+    shop_list = Shop.objects.filter(status=shop_status).order_by('update_at').all()
+    return shop_list
+
+
+def list_shop_creator_history_realname(shop_ids: list):
+    """
+    找出店铺创建的历史真实姓名列表
+    :param shop_ids:
+    :return:
+    """
+    history_realname_list = (
+        HistoryRealName.objects.filter(id__in=shop_ids).all()
+    )
+    return history_realname_list
+
+
+def list_shop_reject_reason(shop_ids: list):
+    """查询出所有的店铺拒绝信息"""
+    reject_reason_list = ShopRejectReason.objects.filter(id__in=shop_ids).all()
+    return reject_reason_list

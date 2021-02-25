@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from user.models import User
-from user.services import create_user, create_user_openid
+from user.services import create_user
 from wsc_django.utils.constant import DateFormat
 
 
@@ -17,18 +17,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserOpenidSerializer(serializers.Serializer):
-    """用户openid序列化器类"""
-
-    user_id = serializers.IntegerField(label="用户id")
-    mp_appid = serializers.CharField(label="公众号appid")
-    wx_openid = serializers.CharField(label="用户openid")
-
-    def create(self, validated_data):
-        user_openid = create_user_openid(**validated_data)
-        return user_openid
-
-
 class UserSerializer(serializers.Serializer):
     """用户序列化器类"""
 
@@ -38,3 +26,11 @@ class UserSerializer(serializers.Serializer):
     phone = serializers.CharField(label="手机号")
     birthday = serializers.DateField(format=DateFormat.DAY, default="", label="用户生日")
     head_image_url = serializers.CharField(label="头像")
+
+
+class operatorSerializer(serializers.Serializer):
+    """审核操作人序列化器类"""
+
+    operate_id = serializers.IntegerField(label="操作人id")
+    operate_name = serializers.CharField(label="操作人名称")
+    operate_img = serializers.CharField(label="操作人头像")

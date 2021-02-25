@@ -1,7 +1,9 @@
 """自己定义的视图类"""
-from rest_framework import status
+from collections import OrderedDict
+
+from rest_framework import status, exceptions
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.generics import GenericAPIView
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from rest_framework_jwt.settings import api_settings
 
@@ -13,7 +15,7 @@ from wsc_django.utils.authenticate import WSCIsLoginAuthenticate
 from wsc_django.utils.permission import StaffRolePermission, WSCStaffPermission
 
 
-class GlobalBaseView(APIView):
+class GlobalBaseView(GenericAPIView):
     """
     通用的请求处理基类，主要定义了一些API通信规范和常用的工具
     响应处理：
@@ -55,6 +57,16 @@ class GlobalBaseView(APIView):
         else:
             res = {"success": False, "error_text": error_text}
         return res
+
+    def _get_paginated_data(self, query_set, serializer):
+        """进行分页操作"""
+        page = self.paginate_queryset(query_set)
+        if page is not None:
+            serializer = serializer(page, many=True)
+            return self.get_paginated_response(serializer.data).data
+        else:
+            serializer = serializer(query_set, many=True)
+            return serializer.data
 
     def finalize_response(self, request, response, *args, **kwargs):
         if isinstance(response, Response):
@@ -140,5 +152,8 @@ class MallBaseView(UserBaseView):
     def _set_current_shop(self, request, shop_code):
         """设置当前商铺"""
         shop = get_shop_by_shop_code(shop_code)
+        if not shop:
+            raise exceptions.NotFound("店铺不存在")
         self.current_shop = shop
+
 

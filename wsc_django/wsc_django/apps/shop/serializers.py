@@ -4,11 +4,13 @@ from django.db import transaction
 from config.services import create_receipt_by_shop
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
-from shop.services import create_shop
+from shop.constant import ShopStatus
+from shop.services import create_shop, create_shop_reject_reason_by_shop_id
 from staff.services import create_super_admin_staff
-from staff.serializers import StaffDetailSerializer
-from user.serializers import UserSerializer
-from wsc_django.utils.validators import mobile_validator
+from user.serializers import UserSerializer, operatorSerializer
+from wsc_django.utils.constant import DateFormat
+from wsc_django.utils.validators import mobile_validator, shop_verify_status_validator, shop_verify_type_validator, \
+    shop_status_validator
 
 
 class ShopCreateSerializer(serializers.Serializer):
@@ -115,5 +117,61 @@ class MallShopSerializer(serializers.Serializer):
     shop_county = serializers.CharField(label="商铺区编号")
     shop_address = serializers.CharField(label="详细地址")
     shop_phone = serializers.CharField(label="商铺联系电话")
+
+
+class SuperShopStatusSerializer(serializers.Serializer):
+    """总后台商铺状态"""
+
+    shop_id = serializers.IntegerField(read_only=True, source="id", label="商铺id")
+    shop_name = serializers.CharField(read_only=True, label="商铺名称")
+    shop_img = serializers.CharField(read_only=True, label="商铺logo")
+    shop_address = serializers.CharField(read_only=True, label="详细地址")
+    shop_province = serializers.CharField(read_only=True, label="商铺省份编号")
+    shop_city = serializers.CharField(read_only=True, label="商铺城市编号")
+    shop_county = serializers.CharField(read_only=True, label="商铺区编号")
+    shop_status = serializers.IntegerField(
+        required=True, source="status", validators=[shop_status_validator], label="商铺状态"
+    )
+    create_time = serializers.DateTimeField(read_only=True, format=DateFormat.TIME, label="商铺创建时间")
+    creator = UserSerializer(read_only=True, label="商铺创建者")
+    operate_time = serializers.DateTimeField(read_only=True, source="update_at", format=DateFormat.TIME, label="操作时间")
+    operator = operatorSerializer(label="审核操作人")
+    reject_reason = serializers.CharField(required=False, default='', label="拒绝理由")
+    description = serializers.CharField(read_only=True, label="商铺描述")
+    inviter_phone = serializers.CharField(read_only=True, label="推荐人手机号")
+    current_realname = serializers.CharField(read_only=True, label="创建时的用户真实姓名")
+
+    def update(self, instance, validated_data):
+        shop_status = validated_data["shop_status"]
+        instance.status = shop_status
+        if shop_status == ShopStatus.REJECTED:
+            create_shop_reject_reason_by_shop_id(instance.id, validated_data['reject_reason'])
+        instance.save()
+        return instance
+
+
+class SuperShopVerifySerializer(serializers.Serializer):
+    """总后台商铺认证状态"""
+
+    shop_id = serializers.IntegerField(source='id', read_only=True, label="商铺id")
+    verify_status = serializers.IntegerField(
+        write_only=True, required=True, validators=[shop_verify_status_validator], label="商铺认证状态"
+    )
+    verify_type = serializers.IntegerField(
+        write_only=True, required=True, validators=[shop_verify_type_validator], label="商铺认证类型,个人/企业"
+    )
+    verify_content = serializers.CharField(
+        write_only=True, min_length=0, max_length=200, required=True, label="认证内容"
+    )
+
+    def update(self, instance, validated_data):
+        cerify_active = validated_data["verify_status"]
+        verify_type = validated_data["verify_type"]
+        verify_content = validated_data["verify_content"]
+        instance.cerify_active = cerify_active
+        instance.shop_verify_type = verify_type
+        instance.shop_verify_content = verify_content
+        instance.save()
+        return instance
 
 

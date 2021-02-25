@@ -2,11 +2,9 @@ import datetime
 
 from django.db import models
 
-# Create your models here.
 from customer.models import Customer
 from delivery.models import Delivery
 from shop.models import Shop
-from wsc_django.utils.models import TimeBaseMixin
 from order.constant import (
     OrderDeliveryMethod,
     OrderStatus,
@@ -14,9 +12,10 @@ from order.constant import (
     OrderType,
     OrderRefundType,
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class Order(models.Model, TimeBaseMixin):
+class Order(TimeBaseModel):
     """订单模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="订单对应的店铺对象")
@@ -132,7 +131,7 @@ class Order(models.Model, TimeBaseMixin):
             return "货到付款"
 
 
-class OrderDetail(models.Model, TimeBaseMixin):
+class OrderDetail(TimeBaseModel):
     """订单详情模型类"""
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, null=False, verbose_name="对应的订单对象")

@@ -1,11 +1,11 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
-from wsc_django.utils.models import TimeBaseMixin
 from user.constant import Sex
+from wsc_django.utils.models import TimeBaseModel
 
 
-class User(AbstractUser, TimeBaseMixin):
+class User(AbstractUser):
     """用户模型类"""
 
     phone = models.CharField(max_length=11, unique=True, verbose_name="手机号")
@@ -35,7 +35,7 @@ class User(AbstractUser, TimeBaseMixin):
         ]
 
 
-class UserOpenid(models.Model, TimeBaseMixin):
+class UserOpenid(TimeBaseModel):
     """用户openid与appid的对应关系"""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="useropenid", null=False, verbose_name="对应的用户对象")

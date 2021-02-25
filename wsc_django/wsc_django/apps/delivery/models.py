@@ -2,16 +2,15 @@ import decimal
 
 from django.db import models
 
-# Create your models here.
 from shop.models import Shop
-from wsc_django.utils.models import TimeBaseMixin
 from order.constant import OrderDeliveryMethod
 from delivery.constant import (
     DeliveryType,
 )
+from wsc_django.utils.models import TimeBaseModel
 
 
-class Delivery(models.Model, TimeBaseMixin):
+class Delivery(TimeBaseModel):
     """配送记录模型类"""
 
     delivery_type = models.SmallIntegerField(
@@ -28,7 +27,7 @@ class Delivery(models.Model, TimeBaseMixin):
         verbose_name_plural = verbose_name
 
 
-class DeliveryConfig(models.Model, TimeBaseMixin):
+class DeliveryConfig(TimeBaseModel):
     """订单配送配置模型类"""
 
     id = models.OneToOneField(
@@ -139,7 +138,7 @@ class DeliveryConfig(models.Model, TimeBaseMixin):
         return True
 
 
-class PickPeriodConfigLine(models.Model, TimeBaseMixin):
+class PickPeriodConfigLine(TimeBaseModel):
     """自提时间段模型类"""
 
     delivery_config = models.ForeignKey(

@@ -53,3 +53,13 @@ def get_openid_by_user_and_appid(user_id: int, mp_appid: str):
     if not user_openid:
         return False, 'openid不存在'
     return True, user_openid
+
+
+def list_user_by_ids(user_ids: list):
+    """
+    通过id列表获取user列表
+    :param user_ids:
+    :return:
+    """
+    user_list = User.objects.filter(id__in=user_ids).all()
+    return user_list

@@ -1,12 +1,13 @@
 from django.db import models
 
 # Create your models here.
+
 from shop.models import Shop
 from user.models import User
-from wsc_django.utils.models import TimeBaseMixin
+from wsc_django.utils.models import TimeBaseModel
 
 
-class Customer(models.Model, TimeBaseMixin):
+class Customer(TimeBaseModel):
     """客户模型类"""
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="客户对应的店铺对象")
@@ -26,7 +27,7 @@ class Customer(models.Model, TimeBaseMixin):
         return not bool(self.consume_count)
 
 
-class CustomerPoint(models.Model, TimeBaseMixin):
+class CustomerPoint(TimeBaseModel):
     """客户历史积分模型类"""
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=False, verbose_name="对应客户对象")

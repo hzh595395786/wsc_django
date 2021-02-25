@@ -1,27 +1,35 @@
 from rest_framework import status
 from rest_framework.response import Response
 
+from shop.constant import ShopStatus
 from shop.models import Shop
 from staff.constant import StaffRole
 from staff.serializers import StaffDetailSerializer
 from user.constant import USER_OUTPUT_CONSTANT
 from user.serializers import UserSerializer
+from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import UserBaseView, AdminBaseView, MallBaseView
 from shop.serializers import (
     ShopCreateSerializer,
     SuperShopSerializer,
     SuperShopListSerializer,
+    SuperShopStatusSerializer,
     AdminShopSerializer,
     MallShopSerializer,
+    SuperShopVerifySerializer,
 )
 from shop.services import (
     get_shop_by_shop_id,
     list_shop_by_shop_ids,
+    list_shop_reject_reason,
+    list_shop_by_shop_status,
+    list_shop_creator_history_realname,
     get_shop_product_species_count_by_shop_ids,
 )
 from shop.interface import (
     list_staff_by_user_id_interface,
     get_user_by_id_interface,
+    list_user_by_ids_interface,
     get_customer_by_user_id_and_shop_id_interface
 )
 
@@ -74,6 +82,89 @@ class SuperShopListView(UserBaseView):
             sl.is_super_admin = 1 if sl.super_admin_id == user.id else 0
         serializer = SuperShopListSerializer(shop_list, many=True)
         return self.send_success(data_list=serializer.data)
+
+
+class SuperShopStatusView(UserBaseView):
+    """总后台-通过shop_status查询所有的店铺&修改店铺的shop_status"""
+
+    shop_status_list = [ShopStatus.CHECKING, ShopStatus.NORMAL, ShopStatus.REJECTED]
+    pagination_class = StandardResultsSetPagination
+
+    # 弄个假的操作人信息
+    class Operator:
+        operate_id = 1
+        operate_name = ""
+        operate_img = ""
+
+    def get(self, request):
+        shop_status = int(request.query_params.get("shop_status", None))
+        # 参数校验
+        if not shop_status or shop_status not in self.shop_status_list:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        # 获取店铺列表
+        shop_list = list_shop_by_shop_status(shop_status)
+        # 店铺创建者信息, 与店铺ID
+        creator_ids = set()
+        shop_ids = set()
+        for slq in shop_list:
+            creator_ids.add(slq.super_admin_id)
+            shop_ids.add(slq.id)
+        creator_ids = list(creator_ids)
+        shop_ids = list(shop_ids)
+        # 店铺创建者
+        creator_list = list_user_by_ids_interface(creator_ids)
+        creator_id_2_creator = {clq.id: clq for clq in creator_list}
+        # 历史真实姓名
+        shop_realname_list = list_shop_creator_history_realname(shop_ids)
+        shop_realname_map = {srl.id: srl.realname for srl in shop_realname_list}
+        if shop_status == ShopStatus.CHECKING:
+            for slq in shop_list:
+                slq.creator = creator_id_2_creator.get(slq.super_admin_id)
+                slq.current_realname = shop_realname_map.get(slq.id, "")
+        elif shop_status == ShopStatus.NORMAL:
+            for slq in shop_list:
+                slq.creator = creator_id_2_creator.get(slq.super_admin_id)
+                slq.current_realname = shop_realname_map.get(slq.id, "")
+                slq.operator = self.Operator
+        else:
+            reject_reason_list = list_shop_reject_reason(shop_ids)
+            shop_id_2_reject_reason = {
+                rrl.id: rrl.reject_reason for rrl in reject_reason_list
+            }
+            for slq in shop_list:
+                slq.creator = creator_id_2_creator.get(slq.super_admin_id)
+                slq.current_realname = shop_realname_map.get(slq.id, "")
+                slq.operator = self.Operator
+                slq.reject_reason = shop_id_2_reject_reason.get(slq.id, "")
+        shop_list = self._get_paginated_data(shop_list, SuperShopStatusSerializer)
+        return self.send_success(data_list=shop_list)
+
+    def post(self, request):
+        shop_id = request.data.pop("shop_id", 0)
+        shop = get_shop_by_shop_id(shop_id)
+        if not shop or shop.status != ShopStatus.CHECKING:
+            return self.send_fail(error_text="店铺不存在")
+        # 更改店铺状态
+        serializer = SuperShopStatusSerializer(shop, data=request.data)
+        if not serializer.is_valid():
+            return Response(data=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return self.send_success(data=serializer.data)
+
+
+class SuperShopVerifyView(UserBaseView):
+    """总后台-修改店铺认证状态"""
+
+    def post(self, request):
+        shop_id = request.data.pop('shop_id', 0)
+        shop = get_shop_by_shop_id(shop_id)
+        if not shop:
+            return self.send_fail(error_text="店铺不存在")
+        serializer = SuperShopVerifySerializer(shop, data=request.data)
+        if not serializer.is_valid():
+            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return self.send_success(data=serializer.data)
 
 
 class AdminShopView(AdminBaseView):
