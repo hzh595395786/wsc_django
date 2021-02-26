@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 
     # 第三方应用
     'rest_framework',
+    'corsheaders', # cors
     
     # 本地应用
     'config.apps.ConfigConfig',
@@ -78,6 +79,7 @@ INSTALLED_APPS = [
 
 # 中间件
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -211,3 +213,10 @@ YUNPIAN_SYSTEM_APIKEY = ""
 # 微信公众号相关
 MP_APPID = 'wx819299c9d4c7bd24'
 MP_APPSECRET = '3237f88e4e5427b5ca2405feb7131031'
+
+# CORS
+CORS_ORIGIN_WHITELIST = (
+    'http://127.0.0.1:8080',
+    'http://localhost:8080',
+)
+CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie

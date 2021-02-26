@@ -1,7 +1,5 @@
-from django.http import JsonResponse
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from django_redis import get_redis_connection
 from wechatpy.oauth import WeChatOAuth
 
@@ -98,7 +96,7 @@ class MallUserView(MallBaseView):
         return self.send_success(data=response_data)
 
 
-class MallSMSCodeView(APIView):
+class MallSMSCodeView(UserBaseView):
     """商城-用户-短信验证接口"""
 
     def post(self, request, mobile):
@@ -106,11 +104,11 @@ class MallSMSCodeView(APIView):
             remote_ip = request.META.get("HTTP_X_FORWARDED_FOR")
         else:
             remote_ip = self.request.META.get("REMOTE_ADDR")
-        user_id = self.request.user.id
+        user_id = self.current_user.id
         use_ip = "bind_phone_ip:%s:%s" % (user_id, remote_ip)
         redis_conn =get_redis_connection("verify_codes")
         if redis_conn.get(use_ip):
-            return JsonResponse({'success':False, 'error_text':'一分钟只能发生一次'})
+            return self.send_fail(error_text="一分钟只能发生一次")
         sms_code = gen_sms_code()
         print("sms_code: ", sms_code)  # 测试用
 
@@ -128,4 +126,4 @@ class MallSMSCodeView(APIView):
         # if not ret:
         #     return JsonResponse({'success':False, "error_text": info})
 
-        return JsonResponse({'success':True})
+        return self.send_success()

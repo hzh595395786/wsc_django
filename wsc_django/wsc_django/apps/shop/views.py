@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from shop.constant import ShopStatus
 from shop.models import Shop
 from staff.constant import StaffRole
-from staff.serializers import StaffDetailSerializer
+from staff.serializers import StaffSerializer
 from user.constant import USER_OUTPUT_CONSTANT
 from user.serializers import UserSerializer
 from wsc_django.utils.pagination import StandardResultsSetPagination
@@ -177,7 +177,7 @@ class AdminShopView(AdminBaseView):
         staff_personal_data = {_:getattr(user, _)for _ in USER_OUTPUT_CONSTANT}
         staff.staff_personal_data = staff_personal_data
         shop_serializer = AdminShopSerializer(shop)
-        staff_serializer = StaffDetailSerializer(staff)
+        staff_serializer = StaffSerializer(staff)
         return self.send_success(shop_data=shop_serializer.data, staff_data=staff_serializer.data)
 
 

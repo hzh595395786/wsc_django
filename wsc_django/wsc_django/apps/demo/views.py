@@ -1,4 +1,6 @@
 """测试使用"""
+from urllib.parse import urlencode
+
 from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -34,4 +36,12 @@ class DemoView(GlobalBaseView):
         return self.send_success(token=token)
 
     def post(self, request):
-        return Response()
+        params = {
+            'response_type': 'code',
+            'redirect_uri':'https://127.0.0.1:8000',
+            'state': 'STATE#wechat_redirect',
+            'appid':"wx819299c9d4c7bd24",
+            'scope':"snsapi_login"
+        }
+        url = 'https://open.weixin.qq.com/connect/qrconnect?' + urlencode(params)
+        return Response({'login_url':url})
