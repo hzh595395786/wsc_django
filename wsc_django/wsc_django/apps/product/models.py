@@ -24,7 +24,7 @@ class ProductGroup(TimeBaseModel):
     )
 
     class Meta:
-        db_table = "prodoct_group"
+        db_table = "product_group"
         verbose_name = "货品分组"
         verbose_name_plural = verbose_name
 
@@ -58,7 +58,7 @@ class Product(TimeBaseModel):
     )
 
     class Meta:
-        db_table = "prodoct"
+        db_table = "product"
         verbose_name = "货品"
         verbose_name_plural = verbose_name
 
@@ -70,7 +70,7 @@ class ProductPicture(TimeBaseModel):
     image_url = models.CharField(max_length=512, verbose_name="货品轮播图url")
 
     class Meta:
-        db_table = "prodoct_picture"
+        db_table = "product_picture"
         verbose_name = "货品轮播图"
         verbose_name_plural = verbose_name
 

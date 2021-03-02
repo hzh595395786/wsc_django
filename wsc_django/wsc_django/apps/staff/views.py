@@ -59,7 +59,9 @@ class StaffApplyView(MallBaseView):
             return self.send_fail(error_text="已提交申请，无需重复提交")
         serializer = StaffApplyCreateSerializer(data=request.data, context={'self':self})
         if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         staff_apply = serializer.save()
         data = {
             "staff_apply_id": staff_apply.id,
@@ -82,7 +84,7 @@ class AdminStaffApplyView(AdminBaseView):
         return self.send_success(data_list=staff_apply_list)
 
     @StaffBaseView.permission_required([StaffBaseView.staff_permissions.ADMIN_STAFF])
-    def post(self, request):
+    def put(self, request):
         shop_id = self.current_shop.id
         staff_apply_id = request.data.pop("staff_apply_id", 0)
         staff_apply = get_staff_apply_by_shop_id_and_id(shop_id, staff_apply_id)
@@ -102,7 +104,9 @@ class AdminStaffApplyView(AdminBaseView):
         if not staff:
             staff_serializer = StaffSerializer(data=staff_info)
             if not staff_serializer.is_valid():
-                return Response(data=staff_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return self.send_error(
+                    error_message=staff_serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+                )
             staff_serializer.save()
         elif staff.status == StaffStatus.NORMAL:
             return self.send_fail(error_text="已经为该店铺的员工")
@@ -113,7 +117,6 @@ class AdminStaffApplyView(AdminBaseView):
                 setattr(staff, k, v)
             staff.save()
         return self.send_success()
-
 
 
 class AdminStaffView(AdminBaseView):
@@ -146,7 +149,7 @@ class AdminStaffView(AdminBaseView):
         return self.send_success()
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
-    def post(self, request):
+    def put(self, request):
         staff_id = request.data.pop("staff_id", 0)
         shop_id = self.current_shop.id
         staff = get_staff_by_id_and_shop_id(staff_id, shop_id)

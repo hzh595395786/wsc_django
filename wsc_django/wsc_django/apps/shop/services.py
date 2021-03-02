@@ -1,5 +1,4 @@
 from uuid import uuid4
-
 from django.db.models import Count
 
 from product.constant import ProductStatus
@@ -104,10 +103,10 @@ def get_shop_product_species_count_by_shop_ids(shop_ids: list):
     shop_product_count = (
         Shop.objects.filter(id__in=shop_ids).
         exclude(product__status=ProductStatus.DELETED).
-        annotate(product_name=Count("product"))
+        annotate(product_count=Count("product"))
     )
     shop_product_count_dict = {
-        shop.id:shop.product_name for shop in shop_product_count
+        shop.id:shop.product_count for shop in shop_product_count
     }
     return shop_product_count_dict
 

@@ -19,6 +19,6 @@ class ProductBrowseRecord(TimeBaseModel):
     next_page_name = models.CharField(max_length=32, verbose_name="下一页名称")
 
     class Meta:
-        db_table = "prodoct_browse_record"
+        db_table = "product_browse_record"
         verbose_name = "货品访问记录"
         verbose_name_plural = verbose_name

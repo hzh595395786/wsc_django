@@ -2,11 +2,15 @@ from django.db import transaction
 from pypinyin import slug
 from rest_framework import serializers
 
+from customer.serializers import AdminCustomerSerializer
+from wsc_django.utils.constant import DateFormat
 from wsc_django.utils.setup import ConvertDecimalPlacesField
 from product.services import (
     create_product,
+    create_product_group,
     create_product_picture,
     update_product_storage,
+    delete_product_picture_by_product_id,
 )
 from storage.constant import (
     ProductStorageRecordType,
@@ -38,13 +42,13 @@ class ProductCreateSerializer(serializers.Serializer):
         shop = self.context["self"].current_shop
         storage = validated_data.pop("storage")
         product_pictures = validated_data.pop("pictures", None)
+        validated_data["shop"] = shop
+        validated_data["name_acronym"] = slug(validated_data["name"], separator="")
         with transaction.atomic():
             # 创建一个保存点
             save_id = transaction.savepoint()
             try:
                 # 添加货品
-                validated_data["shop"] = shop
-                validated_data["name_acronym"] = slug(validated_data["name"], separator="")
                 product = create_product(validated_data, user.id)
                 if product_pictures:
                     # 添加货品轮播图
@@ -69,25 +73,91 @@ class ProductCreateSerializer(serializers.Serializer):
 
 
 class AdminProductSerializer(serializers.Serializer):
-    """后台货品详情序列化器类"""
+    """后台货品序列化器类"""
 
-    product_id = serializers.IntegerField(source="id", label="货品名")
-    group_id = serializers.IntegerField(label="货品分组id")
-    group_name = serializers.CharField(label="货品分组名称")
-    price = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="货品价格")
-    storage = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="货品库存")
-    pictures = serializers.ListField(allow_null=True, child=serializers.CharField(), label="货品轮播图")
-    code = serializers.CharField(label="货品编码")
-    summary = serializers.CharField(label="货品简介")
-    cover_image_url = serializers.CharField(label="货品封面图")
-    description = serializers.CharField(label="货品描述")
-    status = serializers.IntegerField(label="货品状态")
+    product_id = serializers.IntegerField(read_only=True, source="id", label="货品名")
+    group_id = serializers.IntegerField(read_only=True, label="货品分组id")
+    group_name = serializers.CharField(read_only=True, label="货品分组名称")
+    name = serializers.CharField(required=True, min_length=1, max_length=15, label="货品名")
+    price = ConvertDecimalPlacesField(max_digits=13, min_value=0.001, decimal_places=4, label="货品价格")
+    storage = ConvertDecimalPlacesField(min_value=0, max_digits=13, decimal_places=4, label="货品库存")
+    pictures = serializers.ListField(
+        required=False, allow_null=True, min_length=1, max_length=5, child=serializers.CharField(), label="货品轮播图"
+    )
+    code = serializers.CharField(required=False, label="货品编码")
+    summary = serializers.CharField(required=False, min_length=0, max_length=20, label="货品简介")
+    cover_image_url = serializers.CharField(required=False, label="货品封面图")
+    description = serializers.CharField(required=False, label="货品描述")
+    status = serializers.IntegerField(read_only=True, label="货品状态")
 
-    def price_convert_decimal_places(self, price):
-        price = round(float(price), 2)
-        return price
+    def update(self, instance, validated_data):
+        shop = self.context["self"].current_shop
+        user = self.context["self"].current_user
+        validated_data["shop_id"] = shop.id
+        product_pictures = validated_data.pop("pictures", None)
+        new_storage = validated_data.pop("storage")
+        with transaction.atomic():
+            # 创建一个保存点
+            save_id = transaction.savepoint()
+            try:
+                # 更新货品信息
+                for k, v in validated_data.items():
+                    setattr(instance, k, v)
+                instance.save()
+                if product_pictures:
+                    # 更新货品轮播图信息,先删除,再添加
+                    delete_product_picture_by_product_id(instance.id)
+                    for pp in product_pictures:
+                        create_product_picture(instance.id, pp)
+                    # 更改库存,同时生成库存更改记录
+                change_storage = new_storage - instance.storage
+                if change_storage != 0:
+                    update_product_storage(
+                        instance,
+                        user.id,
+                        change_storage,
+                        ProductStorageRecordType.MANUAL_MODIFY,
+                        ProductStorageRecordOperatorType.STAFF,
+                    )
+            except Exception as e:
+                print(e)
+                # 回滚到保存点
+                transaction.savepoint_rollback(save_id)
+                raise
+            # 提交事务
+            transaction.savepoint_commit(save_id)
+        return instance
 
-    def storage_convert_decimal_places(self, storage):
-        storage = round(float(storage), 2)
-        return storage
 
+class AdminProductGroupSerializer(serializers.Serializer):
+    """后台货品分组序列化器类"""
+
+    group_id = serializers.IntegerField(required=False, source="id", label="分组id")
+    name = serializers.CharField(required=True, min_length=1, max_length=10, label="分组名称")
+    description = serializers.CharField(required=False, min_length=0, max_length=50, label="分组描述")
+    default = serializers.IntegerField(required=False, label="默认分组")
+    product_count = serializers.IntegerField(read_only=True, label="分组下的货品数量")
+    products = AdminProductSerializer(read_only=True, many=True, label="分组商品列表")
+
+    def create(self, validated_data):
+        shop = self.context["self"].current_shop
+        product_group = create_product_group(shop.id, validated_data)
+        return product_group
+
+    def update(self, instance, validated_data):
+        # 更新一个货品分组的信息
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        return instance
+
+
+class AdminProductSaleRecordSerializer(serializers.Serializer):
+    """货品销售记录序列化器类"""
+
+    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="创建时间")
+    order_num = serializers.CharField(source="num", label="订单号")
+    price_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="单价（优惠后）")
+    quantity_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="量（优惠后）")
+    amount_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="金额（优惠后）")
+    customer = AdminCustomerSerializer(label="客户信息")

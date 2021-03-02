@@ -48,7 +48,7 @@ class ProductStorageRecord(TimeBaseModel):
     )
 
     class Meta:
-        db_table = "prodoct_storage_record"
+        db_table = "product_storage_record"
         verbose_name = "货品库存变更记录"
         verbose_name_plural = verbose_name
 

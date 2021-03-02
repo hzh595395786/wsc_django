@@ -40,18 +40,22 @@ class SuperShopView(UserBaseView):
     def post(self, request):
         user_id = request.data.get("user_id", None)
         if not user_id:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return self.send_error(status_code=status.HTTP_403_FORBIDDEN)
         user = get_user_by_id_interface(user_id)
         serializer = ShopCreateSerializer(data=request.data.get("shop_data"), context={'user':user})
         if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save()
         return self.send_success(data=serializer.data)
 
     def get(self, request):
         shop_id = request.query_params.get("shop_id", None)
         if not shop_id:
-            return self.send_fail(error_text="缺少shop_id")
+            return self.send_error(
+                error_message={"message":"缺少shop_id"}, status_code=status.HTTP_400_BAD_REQUEST
+            )
         shop = get_shop_by_shop_id(shop_id)
         if not shop:
             return self.send_fail(error_text="店铺不存在")
@@ -100,7 +104,7 @@ class SuperShopStatusView(UserBaseView):
         shop_status = int(request.query_params.get("shop_status", None))
         # 参数校验
         if not shop_status or shop_status not in self.shop_status_list:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(status_code=status.HTTP_400_BAD_REQUEST)
         # 获取店铺列表
         shop_list = list_shop_by_shop_status(shop_status)
         # 店铺创建者信息, 与店铺ID
@@ -139,7 +143,7 @@ class SuperShopStatusView(UserBaseView):
         shop_list = self._get_paginated_data(shop_list, SuperShopStatusSerializer)
         return self.send_success(data_list=shop_list)
 
-    def post(self, request):
+    def put(self, request):
         shop_id = request.data.pop("shop_id", 0)
         shop = get_shop_by_shop_id(shop_id)
         if not shop or shop.status != ShopStatus.CHECKING:
@@ -147,7 +151,9 @@ class SuperShopStatusView(UserBaseView):
         # 更改店铺状态
         serializer = SuperShopStatusSerializer(shop, data=request.data)
         if not serializer.is_valid():
-            return Response(data=serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save()
         return self.send_success(data=serializer.data)
 
@@ -155,14 +161,16 @@ class SuperShopStatusView(UserBaseView):
 class SuperShopVerifyView(UserBaseView):
     """总后台-修改店铺认证状态"""
 
-    def post(self, request):
+    def put(self, request):
         shop_id = request.data.pop('shop_id', 0)
         shop = get_shop_by_shop_id(shop_id)
         if not shop:
             return self.send_fail(error_text="店铺不存在")
         serializer = SuperShopVerifySerializer(shop, data=request.data)
         if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save()
         return self.send_success(data=serializer.data)
 

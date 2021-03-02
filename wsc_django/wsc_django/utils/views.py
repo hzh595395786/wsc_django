@@ -24,8 +24,9 @@ class GlobalBaseView(GenericAPIView):
         态码；请求失败通常是由于一些事物逻辑上的错误，比如库存不够、余额不足等；请
         求成功不解释
 
-        请求失败: send_error(status_code, **kargs)[返回JSON数据格式: {"success":False, "code":fail_code, "text":fail_text}]
-        请求成功: send_fail(fail_code, fail_text)[返回JSON数据格式:{"success":True, **kwargs}]
+        错误请求: send_error(status_code, error_message)
+        请求失败: send_fail(fail_code, fail_text)[返回JSON数据格式: {"success":False, "code":fail_code, "text":fail_text}]
+        请求成功: send_success(**kwargs)[返回JSON数据格式:{"success":True, **kwargs}]
     """
 
     def send_success(self, **kwargs):
@@ -57,6 +58,13 @@ class GlobalBaseView(GenericAPIView):
         else:
             res = {"success": False, "error_text": error_text}
         return res
+
+    def send_error(self, status_code, error_message: dict=None):
+        """后期可以在改进"""
+        if error_message:
+            return Response(data=error_message, status=status_code)
+        else:
+            return Response(status=status_code)
 
     def _get_paginated_data(self, query_set, serializer):
         """进行分页操作"""
@@ -91,7 +99,11 @@ class UserBaseView(GlobalBaseView):
 
     def _get_current_user(self, request):
         jwt = JSONWebTokenAuthentication()
-        res = jwt.authenticate(request)
+        try:
+            res = jwt.authenticate(request)
+        except Exception as e:
+            print(e)
+            res = None
         if res:
             user = res[0]
         else:

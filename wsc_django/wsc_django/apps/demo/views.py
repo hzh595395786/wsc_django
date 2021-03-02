@@ -25,8 +25,6 @@ class DemoView(GlobalBaseView):
     serializer_class = DemoSerializer
     pagination_class = StandardResultsSetPagination
 
-
-
     def get(self, request):
         user = User.objects.filter(id=1).first()
         jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
