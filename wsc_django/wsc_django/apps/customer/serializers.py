@@ -3,6 +3,7 @@ from rest_framework import serializers
 from wsc_django.utils.setup import ConvertDecimalPlacesField
 from user.serializers import UserSerializer
 
+
 class AdminCustomerSerializer(serializers.Serializer):
     """后台用户详情序列化器类"""
 

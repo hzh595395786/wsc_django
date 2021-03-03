@@ -250,6 +250,23 @@ def list_product_by_filter(
     product_list = product_list_query.all()
     return product_list
 
+
+def list_product_by_shop_id(shop_id: int, status=None):
+    """
+    通过商店ID查询旗下的所有的所有货品
+    :param shop_id:
+    :param status:
+    :return:
+    """
+    product_query = Product.objects.filter(shop_id=shop_id)
+    if isinstance(status, int):
+        product_query = product_query.filter(status=status)
+    elif isinstance(status, list):
+        product_query = product_query.filter(status__in=status)
+    product_list = product_query.all()
+    return product_list
+
+
 #####################  货品分组相关  #####################
 def create_product_group(shop_id: int, product_group_info: dict):
     """
@@ -350,3 +367,24 @@ def list_product_group_with_product_count(shop_id: int, status_list: list):
         all()
     )
     return product_group_list_with_count
+
+
+def list_product_group_with_product_list(
+        shop_id: int, status: int = ProductStatus.ON
+):
+    """
+    通过商店ID查询所有分组,并且将分组下的货品信息挂载
+    :param shop_id:
+    :param status:
+    :return:
+    """
+    # 查询分组信息
+    product_group_list = list_product_group_by_shop_id(shop_id)
+    product_list = list_product_by_shop_id(shop_id, status)
+    product_group_index_dict = {}
+    for index, pgl in enumerate(product_group_list):
+        product_group_index_dict[pgl.id] = index
+        pgl.products = []
+    for pl in product_list:
+        product_group_list[product_group_index_dict[pl.group_id]].products.append(pl)
+    return product_group_list

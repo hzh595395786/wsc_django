@@ -4,11 +4,13 @@ from rest_framework.response import Response
 from product.constant import ProductStatus, ProductOperationType
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.setup import is_contains, str_to_list
-from wsc_django.utils.views import AdminBaseView
+from wsc_django.utils.views import AdminBaseView, MallBaseView
 from product.interface import list_order_with_order_lines_by_product_id_interface
 from product.serializers import (
+    MallProductSerializer,
     ProductCreateSerializer,
     AdminProductSerializer,
+    MallProductGroupSerializer,
     AdminProductGroupSerializer,
     AdminProductSaleRecordSerializer,
 )
@@ -22,6 +24,7 @@ from product.services import (
     delete_product_by_ids_and_shop_id,
     update_product_product_group_by_ids,
     get_product_group_by_shop_id_and_id,
+    list_product_group_with_product_list,
     list_product_group_with_product_count,
     delete_product_group_by_id_and_shop_id,
 )
@@ -232,4 +235,31 @@ class AdminProductSaleRecordView(AdminBaseView):
             product_sale_record_list, AdminProductSaleRecordSerializer
         )
         return self.send_success(data_list=product_sale_record_list)
+
+
+class MallProductView(MallBaseView):
+    """商城-货品-获取单个货品详情"""
+
+    def get(self, request, shop_code):
+        self._set_current_shop(request, shop_code)
+        shop = self.current_shop
+        product_id = request.query_params.get("product_id", None)
+        if not product_id:
+            return self.send_error(
+                error_message={'messages':"缺少product_id"}, status_code=status.HTTP_400_BAD_REQUEST
+            )
+        product = get_product_with_group_name(shop.id, product_id)
+        serializer = MallProductSerializer(product)
+        return self.send_success(data=serializer.data)
+
+
+class MallProductsView(MallBaseView):
+    """商城-货品-获取所有分组及旗下货品"""
+
+    def get(self, request, shop_code):
+        self._set_current_shop(request, shop_code)
+        shop = self.current_shop
+        product_group_list = list_product_group_with_product_list(shop.id)
+        serializer = MallProductGroupSerializer(product_group_list, many=True)
+        return self.send_success(data_list=serializer.data)
 

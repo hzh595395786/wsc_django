@@ -161,3 +161,13 @@ class AdminProductSaleRecordSerializer(serializers.Serializer):
     quantity_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="量（优惠后）")
     amount_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="金额（优惠后）")
     customer = AdminCustomerSerializer(label="客户信息")
+
+
+class MallProductSerializer(AdminProductSerializer):
+    """商城端货品序列化器类"""
+    pass # 继承父类
+
+
+class MallProductGroupSerializer(AdminProductGroupSerializer):
+    """商城端货品分组序列化器类"""
+    pass # 继承父类
