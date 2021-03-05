@@ -1,5 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
+from webargs import fields, validate
+from webargs.djangoparser import use_args
 
 from staff.constant import StaffApplyStatus, StaffRole, StaffStatus
 from staff.serializers import (
@@ -14,9 +16,16 @@ from staff.services import (
     get_staff_apply_by_user_id_and_shop_id,
     list_staff_apply_by_shop_id,
     expire_staff_apply_by_staff,
-    list_staff_by_shop_id)
+    list_staff_by_shop_id,
+    cal_all_roles_without_super,
+    cal_all_permission,
+)
+from wsc_django.utils.constant import PHONE_RE
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import StaffBaseView, MallBaseView, AdminBaseView
+
+all_roles = cal_all_roles_without_super()
+all_permission = cal_all_permission()
 
 
 class StaffApplyView(MallBaseView):
@@ -45,7 +54,24 @@ class StaffApplyView(MallBaseView):
         serializer = StaffApplySerializer(staff_apply_query)
         return self.send_success(data=serializer.data, shop_info={"shop_name":current_shop.shop_name})
 
-    def post(self, request, shop_code):
+    @use_args(
+        {
+            "realname": fields.String(
+                required=True, validate=[validate.Length(1, 64)], comment="真实姓名"
+            ),
+            "phone": fields.String(
+                required=False,
+                validate=[validate.Regexp(PHONE_RE)],
+                comment="手机号,已绑定的时候是不需要的",
+            ),
+            "code": fields.String(
+                required=False, validate=[validate.Regexp(r"^[0-9]{4}$")], comment="验证码"
+            ),
+            "birthday": fields.Date(required=False, allow_none=True, comment="生日"),
+        },
+        location="json"
+    )
+    def post(self, request, args, shop_code):
         user = self.current_user
         self._set_current_shop(request, shop_code)
         current_shop = self.current_shop
@@ -57,7 +83,7 @@ class StaffApplyView(MallBaseView):
         staff_apply = get_staff_apply_by_user_id_and_shop_id(user.id, current_shop.id)
         if staff_apply:
             return self.send_fail(error_text="已提交申请，无需重复提交")
-        serializer = StaffApplyCreateSerializer(data=request.data, context={'self':self})
+        serializer = StaffApplyCreateSerializer(data=args, context={'self':self})
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
@@ -84,19 +110,48 @@ class AdminStaffApplyView(AdminBaseView):
         return self.send_success(data_list=staff_apply_list)
 
     @StaffBaseView.permission_required([StaffBaseView.staff_permissions.ADMIN_STAFF])
-    def put(self, request):
+    @use_args(
+        {
+            "staff_apply_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="申请ID"
+            ),
+            "position": fields.String(
+                required=False,
+                validate=[validate.Length(0, 16)],
+                allow_none=True,
+                comment="员工职位",
+            ),
+            "entry_date": fields.Date(required=False, allow_none=True, comment="入职日期"),
+            "remark": fields.String(
+                required=False,
+                validate=[validate.Length(0, 20)],
+                allow_none=True,
+                comment="备注",
+            ),
+            "roles": fields.Integer(
+                required=True, validate=[validate.Range(1, all_roles)], comment="角色"
+            ),
+            "permissions": fields.Integer(
+                required=True,
+                validate=[validate.Range(1, all_permission)],
+                comment="权限",
+            )
+        },
+        location="json"
+    )
+    def put(self, request, args):
         shop_id = self.current_shop.id
-        staff_apply_id = request.data.pop("staff_apply_id", 0)
+        staff_apply_id = args.pop("staff_apply_id")
         staff_apply = get_staff_apply_by_shop_id_and_id(shop_id, staff_apply_id)
         if not staff_apply:
             return self.send_fail(error_text='员工申请记录不存在')
-        staff_apply_serializer = StaffApplySerializer(staff_apply, request.data)
+        staff_apply_serializer = StaffApplySerializer(staff_apply, args)
         # 此处无需验证，仅为了save的执行
         staff_apply_serializer.is_valid()
         staff_apply_serializer.save()
         # 申请通过，创建员工
         staff_info = {"shop_id": shop_id, "user_id": staff_apply.user.id}
-        staff_info.update(request.data)
+        staff_info.update(args)
         # 校验员工是否存在
         staff = get_staff_by_user_id_and_shop_id(
             staff_apply.user.id, shop_id, filter_delete=False
@@ -123,8 +178,16 @@ class AdminStaffView(AdminBaseView):
     """商城端-员工-员工详情&编辑员工&删除员工"""
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
-    def get(self, request):
-        staff_id = request.query_params.get("staff_id", 0)
+    @use_args(
+        {
+            "staff_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="员工ID"
+            )
+        },
+        location="query"
+    )
+    def get(self, request, args):
+        staff_id = args.get("staff_id")
         shop_id = self.current_shop
         staff = get_staff_by_id_and_shop_id(staff_id, shop_id)
         if not staff:
@@ -133,6 +196,14 @@ class AdminStaffView(AdminBaseView):
         return self.send_success(data=serializer.data)
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
+    @use_args(
+        {
+            "staff_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="员工ID"
+            )
+        },
+        location="query"
+    )
     def delete(self, request):
         staff_id = request.query_params.get("staff_id", 0)
         shop_id = self.current_shop.id
@@ -149,8 +220,37 @@ class AdminStaffView(AdminBaseView):
         return self.send_success()
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
-    def put(self, request):
-        staff_id = request.data.pop("staff_id", 0)
+    @use_args(
+        {
+            "staff_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="员工ID"
+            ),
+            "position": fields.String(
+                required=False,
+                validate=[validate.Length(0, 16)],
+                allow_none=True,
+                comment="员工职位",
+            ),
+            "entry_date": fields.Date(required=False, allow_none=True, comment="入职日期"),
+            "remark": fields.String(
+                required=False,
+                validate=[validate.Length(0, 20)],
+                allow_none=True,
+                comment="备注",
+            ),
+            "roles": fields.Integer(
+                required=True, validate=[validate.Range(0, all_roles)], comment="角色"
+            ),
+            "permissions": fields.Integer(
+                required=True,
+                validate=[validate.Range(0, all_permission)],
+                comment="权限",
+            ),
+        },
+        location="json"
+    )
+    def put(self, request, args):
+        staff_id = args.pop("staff_id")
         shop_id = self.current_shop.id
         staff = get_staff_by_id_and_shop_id(staff_id, shop_id)
         if not staff:
@@ -159,7 +259,7 @@ class AdminStaffView(AdminBaseView):
         elif staff.roles == StaffRole.SHOP_SUPER_ADMIN:
             if self.current_user.id != staff.user_id:
                 return self.send_fail(error_text="超管信息仅自己可以编辑")
-        serializer = StaffSerializer(staff, data=request.data)
+        serializer = StaffSerializer(staff, data=args)
         if not serializer.is_valid():
             return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer.save()
@@ -171,8 +271,14 @@ class AdminStaffListView(AdminBaseView):
     pagination_class = StandardResultsSetPagination
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
-    def get(self, request):
+    @use_args(
+        {
+            "keyword": fields.String(required=False, comment="搜索关键字(姓名或手机号)"),
+        },
+        location="query"
+    )
+    def get(self, request, args):
         shop_id = self.current_shop.id
-        staff_list = list_staff_by_shop_id(shop_id, request.query_params.get("keyword", None))
+        staff_list = list_staff_by_shop_id(shop_id, args.get("keyword"))
         staff_list = self._get_paginated_data(staff_list, StaffSerializer)
         return self.send_success(data_list=staff_list)

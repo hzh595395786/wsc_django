@@ -9,8 +9,13 @@ from shop.services import create_shop, create_shop_reject_reason_by_shop_id
 from staff.services import create_super_admin_staff
 from user.serializers import UserSerializer, operatorSerializer
 from wsc_django.utils.constant import DateFormat
-from wsc_django.utils.validators import mobile_validator, shop_verify_status_validator, shop_verify_type_validator, \
-    shop_status_validator
+from wsc_django.utils.validators import (
+    mobile_validator,
+    shop_verify_status_validator,
+    shop_verify_type_validator,
+    shop_status_validator,
+
+)
 
 
 class ShopCreateSerializer(serializers.Serializer):
@@ -135,17 +140,17 @@ class SuperShopStatusSerializer(serializers.Serializer):
     create_time = serializers.DateTimeField(read_only=True, format=DateFormat.TIME, label="商铺创建时间")
     creator = UserSerializer(read_only=True, label="商铺创建者")
     operate_time = serializers.DateTimeField(read_only=True, source="update_at", format=DateFormat.TIME, label="操作时间")
-    operator = operatorSerializer(label="审核操作人")
+    operator = operatorSerializer(read_only=True, label="审核操作人")
     reject_reason = serializers.CharField(required=False, default='', label="拒绝理由")
     description = serializers.CharField(read_only=True, label="商铺描述")
     inviter_phone = serializers.CharField(read_only=True, label="推荐人手机号")
     current_realname = serializers.CharField(read_only=True, label="创建时的用户真实姓名")
 
     def update(self, instance, validated_data):
-        shop_status = validated_data["shop_status"]
+        shop_status = validated_data["status"]
         instance.status = shop_status
         if shop_status == ShopStatus.REJECTED:
-            create_shop_reject_reason_by_shop_id(instance.id, validated_data['reject_reason'])
+            create_shop_reject_reason_by_shop_id(instance, validated_data['reject_reason'])
         instance.save()
         return instance
 

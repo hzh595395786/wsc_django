@@ -63,7 +63,7 @@ class HistoryRealName(TimeBaseModel):
 
     id = models.OneToOneField(
         Shop, on_delete=models.CASCADE, primary_key=True, unique=True, null=False,verbose_name="对应的店铺id"
-    )
+    ).primary_key
     realname = models.CharField(max_length=32, null=False, verbose_name='历史真实姓名')
 
     class Meta:
@@ -77,7 +77,7 @@ class ShopRejectReason(TimeBaseModel):
 
     id = models.OneToOneField(
         Shop, on_delete=models.CASCADE, primary_key=True, unique=True, null=False, verbose_name="对应的店铺id"
-    )
+    ).primary_key
     reject_reason = models.CharField(max_length=256, null=False, default='', verbose_name="拒绝理由")
 
     class Meta:

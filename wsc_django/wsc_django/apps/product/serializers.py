@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from customer.serializers import AdminCustomerSerializer
 from wsc_django.utils.constant import DateFormat
-from wsc_django.utils.setup import ConvertDecimalPlacesField
+from wsc_django.utils.core import FuncField
 from product.services import (
     create_product,
     create_product_group,
@@ -21,6 +21,7 @@ from storage.constant import (
 class ProductCreateSerializer(serializers.Serializer):
     """创建货品序列化器类"""
 
+    product_id = serializers.IntegerField(source="id", read_only=True, label="货品id")
     name = serializers.CharField(max_length=15, min_length=1, required=True, label="货品名称")
     group_id = serializers.IntegerField(required=True, label="货品分组id")
     price = serializers.DecimalField(max_digits=13, decimal_places=4, required=True, min_value=0, label="货品单价")
@@ -79,8 +80,8 @@ class AdminProductSerializer(serializers.Serializer):
     group_id = serializers.IntegerField(read_only=True, label="货品分组id")
     group_name = serializers.CharField(read_only=True, label="货品分组名称")
     name = serializers.CharField(required=True, min_length=1, max_length=15, label="货品名")
-    price = ConvertDecimalPlacesField(max_digits=13, min_value=0.001, decimal_places=4, label="货品价格")
-    storage = ConvertDecimalPlacesField(min_value=0, max_digits=13, decimal_places=4, label="货品库存")
+    price = FuncField(lambda value: round(float(value), 2), label="货品价格")
+    storage = FuncField(lambda value: round(float(value), 2), label="货品库存")
     pictures = serializers.ListField(
         required=False, allow_null=True, min_length=1, max_length=5, child=serializers.CharField(), label="货品轮播图"
     )
@@ -157,9 +158,9 @@ class AdminProductSaleRecordSerializer(serializers.Serializer):
 
     create_time = serializers.DateTimeField(format=DateFormat.TIME, label="创建时间")
     order_num = serializers.CharField(source="num", label="订单号")
-    price_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="单价（优惠后）")
-    quantity_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="量（优惠后）")
-    amount_net = ConvertDecimalPlacesField(max_digits=13, decimal_places=4, label="金额（优惠后）")
+    price_net = FuncField(lambda value: round(float(value), 2), label="单价（优惠后）")
+    quantity_net = FuncField(lambda value: round(float(value), 2), label="量（优惠后）")
+    amount_net = FuncField(lambda value: round(float(value), 2), label="金额（优惠后）")
     customer = AdminCustomerSerializer(label="客户信息")
 
 

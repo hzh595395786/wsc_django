@@ -42,13 +42,13 @@ def create_shop(shop_info: dict, user: User):
     return shop
 
 
-def create_shop_reject_reason_by_shop_id(shop_id: int, reject_reason: str):
+def create_shop_reject_reason_by_shop_id(shop: Shop, reject_reason: str):
     """
     给拒绝的店铺创建一个拒绝理由
     :param shop_id:
     :return:
     """
-    reject_reason = ShopRejectReason.objects.create(id=shop_id, reject_reason=reject_reason)
+    reject_reason = ShopRejectReason.objects.create(id=shop, reject_reason=reject_reason)
     return reject_reason
 
 

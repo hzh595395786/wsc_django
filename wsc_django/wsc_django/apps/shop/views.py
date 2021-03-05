@@ -1,7 +1,8 @@
+from webargs import fields, validate
 from rest_framework import status
-from rest_framework.response import Response
+from webargs.djangoparser import use_args
 
-from shop.constant import ShopStatus
+from shop.constant import ShopStatus, ShopVerifyActive, ShopVerifyType
 from shop.models import Shop
 from staff.constant import StaffRole
 from staff.serializers import StaffSerializer
@@ -37,12 +38,68 @@ from shop.interface import (
 class SuperShopView(UserBaseView):
     """总后台-商铺-商铺创建&商铺详情"""
 
-    def post(self, request):
-        user_id = request.data.get("user_id", None)
-        if not user_id:
-            return self.send_error(status_code=status.HTTP_403_FORBIDDEN)
+    @use_args(
+        {
+            "user_id": fields.String(required=True, validate=validate.Range(1), comment="用户id"),
+            "shop_data": fields.Nested(
+                {
+                    "shop_name": fields.String(
+                        required=True, validate=[validate.Length(0, 128)], comment="店铺名"
+                    ),
+                    "shop_img": fields.String(
+                        required=True,
+                        validate=[validate.Length(0, 300)],
+                        comment="店铺logo",
+                    ),
+                    "shop_province": fields.Integer(required=True, comment="省份编码"),
+                    "shop_city": fields.Integer(required=True, comment="城市编码"),
+                    "shop_county": fields.Integer(required=True, comment="区份编码"),
+                    "shop_address": fields.String(
+                        required=True,
+                        validate=[validate.Length(0, 100)],
+                        comment="详细地址",
+                    ),
+                    "description": fields.String(
+                        required=True, validate=[validate.Length(0, 200)], comment="描述"
+                    ),
+                    "inviter_phone": fields.String(
+                        required=True,
+                        validate=[validate.Length(0, 32)],
+                        comment="推荐人手机号",
+                    ),
+                    "longitude": fields.Decimal(
+                        required=False,
+                        data_key="lng",
+                        allow_none=True,
+                        validate=[validate.Range(-180, 180)],
+                        comment="经度",
+                    ),
+                    "latitude": fields.Decimal(
+                        required=False,
+                        data_key="lat",
+                        allow_none=True,
+                        validate=[validate.Range(-90, 90)],
+                        comment="纬度",
+                    ),
+                    "realname": fields.String(
+                        required=False,
+                        allow_none=True,
+                        validate=[validate.Length(0, 32)],
+                        comment="历史真实姓名",
+                    ),
+                },
+                required=True,
+                comment="店铺信息",
+                unknown=True,
+            ),
+        },
+        location="json",
+    )
+    def post(self, request, args):
+
+        user_id = args["user_id"]
         user = get_user_by_id_interface(user_id)
-        serializer = ShopCreateSerializer(data=request.data.get("shop_data"), context={'user':user})
+        serializer = ShopCreateSerializer(data=args.get("shop_data"), context={'user':user})
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
@@ -50,12 +107,14 @@ class SuperShopView(UserBaseView):
         serializer.save()
         return self.send_success(data=serializer.data)
 
-    def get(self, request):
-        shop_id = request.query_params.get("shop_id", None)
-        if not shop_id:
-            return self.send_error(
-                error_message={"message":"缺少shop_id"}, status_code=status.HTTP_400_BAD_REQUEST
-            )
+    @use_args(
+        {
+            "shop_id": fields.Integer(required=True, comment="森果通行证ID"),
+        },
+        location="query"
+    )
+    def get(self, request, args):
+        shop_id = args.get("shop_id")
         shop = get_shop_by_shop_id(shop_id)
         if not shop:
             return self.send_fail(error_text="店铺不存在")
@@ -90,8 +149,6 @@ class SuperShopListView(UserBaseView):
 
 class SuperShopStatusView(UserBaseView):
     """总后台-通过shop_status查询所有的店铺&修改店铺的shop_status"""
-
-    shop_status_list = [ShopStatus.CHECKING, ShopStatus.NORMAL, ShopStatus.REJECTED]
     pagination_class = StandardResultsSetPagination
 
     # 弄个假的操作人信息
@@ -100,12 +157,22 @@ class SuperShopStatusView(UserBaseView):
         operate_name = ""
         operate_img = ""
 
-    def get(self, request):
-        shop_status = int(request.query_params.get("shop_status", None))
-        # 参数校验
-        if not shop_status or shop_status not in self.shop_status_list:
-            return self.send_error(status_code=status.HTTP_400_BAD_REQUEST)
-        # 获取店铺列表
+    @use_args(
+        {
+            "shop_status": fields.Integer(
+                required=True,
+                validate=[
+                    validate.OneOf(
+                        [ShopStatus.CHECKING, ShopStatus.NORMAL, ShopStatus.REJECTED]
+                    )
+                ],
+                comment="店铺状态",
+            ),
+        },
+        location="query"
+    )
+    def get(self, request, args):
+        shop_status = args.get("shop_status")
         shop_list = list_shop_by_shop_status(shop_status)
         # 店铺创建者信息, 与店铺ID
         creator_ids = set()
@@ -143,36 +210,87 @@ class SuperShopStatusView(UserBaseView):
         shop_list = self._get_paginated_data(shop_list, SuperShopStatusSerializer)
         return self.send_success(data_list=shop_list)
 
-    def put(self, request):
-        shop_id = request.data.pop("shop_id", 0)
+    @use_args(
+        {
+            "shop_id": fields.Integer(
+                required=True, validate=[validate.Range(0)], comment="店铺ID"
+            ),
+            "shop_status": fields.Integer(
+                required=True,
+                validate=[validate.OneOf([ShopStatus.NORMAL, ShopStatus.REJECTED])],
+                comment="店铺状态",
+            ),
+            "reject_reason": fields.String(
+                required=False,
+                missing="",
+                validate=[validate.Length(0, 200)],
+                comment="拒绝理由,尽在拒绝的时候需要",
+            ),
+        },
+        location="json",
+    )
+    def put(self, request, args):
+        shop_id = args.pop("shop_id")
         shop = get_shop_by_shop_id(shop_id)
-        if not shop or shop.status != ShopStatus.CHECKING:
+        if not shop:
             return self.send_fail(error_text="店铺不存在")
         # 更改店铺状态
-        serializer = SuperShopStatusSerializer(shop, data=request.data)
+        serializer = SuperShopStatusSerializer(shop, data=args)
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
             )
         serializer.save()
-        return self.send_success(data=serializer.data)
+        return self.send_success()
 
 
 class SuperShopVerifyView(UserBaseView):
     """总后台-修改店铺认证状态"""
 
-    def put(self, request):
-        shop_id = request.data.pop('shop_id', 0)
-        shop = get_shop_by_shop_id(shop_id)
+    @use_args(
+        {
+            "shop_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="店铺ID"
+            ),
+            "verify_status": fields.Integer(
+                required=True,
+                validate=[
+                    validate.OneOf(
+                        [
+                            ShopVerifyActive.YES,
+                            ShopVerifyActive.CHECKING,
+                            ShopVerifyActive.REJECTED,
+                        ]
+                    )
+                ],
+                comment="店铺认证状态",
+            ),
+            "verify_type": fields.Integer(
+                required=True,
+                validate=[
+                    validate.OneOf(
+                        [ShopVerifyType.ENTERPRISE, ShopVerifyType.INDIVIDUAL]
+                    )
+                ],
+                comment="店铺认证类型,个人/企业",
+            ),
+            "verify_content": fields.String(
+                required=True, validate=[validate.Length(0, 200)], comment="认证内容"
+            ),
+        },
+        location="json"
+    )
+    def put(self, request, args):
+        shop = get_shop_by_shop_id(args.pop("shop_id"))
         if not shop:
             return self.send_fail(error_text="店铺不存在")
-        serializer = SuperShopVerifySerializer(shop, data=request.data)
+        serializer = SuperShopVerifySerializer(shop, data=args)
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
             )
         serializer.save()
-        return self.send_success(data=serializer.data)
+        return self.send_success()
 
 
 class AdminShopView(AdminBaseView):

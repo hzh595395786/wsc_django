@@ -5,15 +5,14 @@ from staff.constant import StaffApplyStatus, StaffRole
 from staff.services import create_staff_apply, create_staff
 from user.serializers import UserSerializer
 from wsc_django.utils.constant import DateFormat
-from wsc_django.utils.validators import mobile_validator, staff_permission_validator, staff_role_validator
 
 
 class StaffSerializer(serializers.Serializer):
     """员工序列化器类"""
 
     staff_id = serializers.IntegerField(read_only=True, source="id", label="员工id")
-    roles = serializers.IntegerField(required=True, validators=[staff_role_validator], label="角色")
-    permissions = serializers.IntegerField(required=True, validators=[staff_permission_validator], label="权限")
+    roles = serializers.IntegerField(required=True, label="角色")
+    permissions = serializers.IntegerField(required=True, label="权限")
     position = serializers.CharField(required=False, min_length=0, max_length=16, allow_null=True, label="员工职位")
     entry_date = serializers.DateField(required=False, format=DateFormat.DAY, allow_null=True, label="入职日期")
     remark = serializers.CharField(required=False, min_length=0, max_length=20, allow_null=True, label="备注")
@@ -57,7 +56,7 @@ class StaffApplyCreateSerializer(serializers.Serializer):
 
     realname = serializers.CharField(write_only=True, max_length=64, min_length=1, required=True, label="真实姓名")
     phone = serializers.CharField(
-        write_only=True, required=True, min_length=11, max_length=11, validators=[mobile_validator], label="手机号"
+        write_only=True, required=True, min_length=11, max_length=11, label="手机号"
     )
     sms_code = serializers.CharField(write_only=True, required=True, min_length=4, max_length=4, label="短信验证码")
     birthday = serializers.DateField(write_only=True, required=False, label="生日")

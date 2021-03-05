@@ -86,7 +86,6 @@ class GlobalBaseView(GenericAPIView):
 
 class UserBaseView(GlobalBaseView):
     """用户的基类，用来处理认证"""
-
     authentication_classes = (WSCIsLoginAuthenticate, )
 
     def initialize_request(self, request, *args, **kwargs):

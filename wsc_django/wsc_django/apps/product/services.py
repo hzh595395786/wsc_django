@@ -226,7 +226,7 @@ def list_product_by_group_id_and_shop_id(
 
 def list_product_by_filter(
     shop_id: int,
-    status_list: list,
+    status: list,
     keyword: str,
     group_id: int,
 ):
@@ -238,7 +238,7 @@ def list_product_by_filter(
     :param status:
     :return:
     """
-    product_list_query = Product.objects.filter(shop_id=shop_id, status__in=status_list)
+    product_list_query = Product.objects.filter(shop_id=shop_id, status__in=status)
     if keyword:
         product_list_query = product_list_query.filter(
             Q(name__contains=keyword) |
@@ -295,17 +295,15 @@ def create_default_group_by_shop(shop: Shop):
     return default_product_group
 
 
-def delete_product_group_by_id_and_shop_id(group_id: int, shop_id: int):
+def delete_product_group_by_id_and_shop_id(product_group: ProductGroup, group_id: int, shop_id: int):
     """
     删除一个货品分组
+    :param product_group:
     :param group_id:
     :param shop_id:
     :return:
     """
-    product_group = get_product_group_by_shop_id_and_id(shop_id, group_id)
-    if not product_group:
-        return False, "货品分组不存在"
-    elif product_group.default == ProductGroupDefault.YES:
+    if product_group.default == ProductGroupDefault.YES:
         return False, "默认分组不可删除"
     # 获取分组下货品
     product_list = list_product_by_group_id_and_shop_id(
@@ -352,16 +350,16 @@ def list_product_group_by_shop_id(shop_id: int):
     return product_group_list
 
 
-def list_product_group_with_product_count(shop_id: int, status_list: list):
+def list_product_group_with_product_count(shop_id: int, status: list):
     """
     查询所有的分组并且包含分组对应的货品数量
     :param shop_id:
-    :param status_list:
+    :param status:
     :return:
     """
     # 查询货品数量
     product_group_list_with_count = (
-        ProductGroup.objects.filter(shop_id=shop_id, product__status__in=status_list).
+        ProductGroup.objects.filter(shop_id=shop_id, product__status__in=status).
         order_by('sort').
         annotate(product_count=Count("product")).
         all()

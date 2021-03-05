@@ -1,6 +1,8 @@
 from rest_framework import status
 from rest_framework.response import Response
 from django_redis import get_redis_connection
+from webargs.djangoparser import use_args
+from webargs import fields
 from wechatpy.oauth import WeChatOAuth
 
 from customer.services import create_customer
@@ -27,8 +29,11 @@ class AdminUserView(UserBaseView):
 class MallUserView(MallBaseView):
     """商城-用户-登录注册"""
 
-    def post(self, request, shop_code):
-        code = request.data.get("code", None)
+    @use_args(
+        {"code": fields.String(required=True, comment="微信code")}, location="json",
+    )
+    def post(self, request, args, shop_code):
+        code = args.get("code")
         if not code:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         self._set_current_shop(request, shop_code)
