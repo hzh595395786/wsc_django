@@ -1,6 +1,7 @@
 from django.db.models import Q
 
 from shop.models import Shop
+from user.constant import USER_OUTPUT_CONSTANT
 from user.models import User
 from staff.models import Staff, StaffApply
 from staff.constant import (
@@ -152,6 +153,8 @@ def get_staff_by_id_and_shop_id(
     if filter_delete:
         staff_query = staff_query.filter(status=StaffStatus.NORMAL)
     staff = staff_query.first()
+    for _ in USER_OUTPUT_CONSTANT:
+        setattr(staff, _, getattr(staff.user, _))
     return staff
 
 
@@ -218,4 +221,7 @@ def list_staff_by_shop_id(shop_id: int, keyword: str = None):
     else:
         staff_list_query = Staff.objects.filter(shop_id=shop_id, status=StaffStatus.NORMAL)
     staff_list = staff_list_query.all()
+    for staff in staff_list:
+        for _ in USER_OUTPUT_CONSTANT:
+            setattr(staff, _, getattr(staff.user, _))
     return staff_list

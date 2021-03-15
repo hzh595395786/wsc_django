@@ -135,6 +135,13 @@ CACHES = {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     },
+    "num_generate": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/3",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
 }
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "session"
@@ -212,7 +219,7 @@ YUNPIAN_SYSTEM_APIKEY = ""
 
 # 微信公众号相关
 MP_APPID = 'wx819299c9d4c7bd24'
-MP_APPSECRET = '3237f88e4e5427b5ca2405feb7131031'
+MP_APPSECRET = 'f71da8ef954f3d09bfcf5f646a95bbc9'
 
 # CORS
 CORS_ORIGIN_WHITELIST = (
@@ -220,3 +227,15 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:8080',
 )
 CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
+
+# 利楚商务测试服务器
+LCSW_CALLBACK_HOST = "http://127.0.0.1:8000"
+LCSW_HANDLE_HOST = "https://pay.lcsw.cn/lcsw"
+LCSW_INST_NO = "52100011"
+LCSW_INST_KEY = "a6540e60532a4f5f9207536cdd37d83d"
+
+# celery broker相关
+CELERY_BROKER = "amqp://guest@localhost:5674//"
+
+# 前端商城域名
+WSC_HOST_NAME = ""

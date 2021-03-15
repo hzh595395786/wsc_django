@@ -7,7 +7,7 @@ from product.constant import ProductStatus, ProductOperationType
 from wsc_django.utils.arguments import StrToList
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import AdminBaseView, MallBaseView
-from product.interface import list_order_with_order_lines_by_product_id_interface
+from product.interface import list_order_with_order_details_by_product_id_interface
 from product.serializers import (
     MallProductSerializer,
     ProductCreateSerializer,
@@ -371,7 +371,7 @@ class AdminProductSaleRecordView(AdminBaseView):
     def get(self, request, args):
         product_id = args.get("product_id")
         shop = self.current_shop
-        product_sale_record_list = list_order_with_order_lines_by_product_id_interface(shop.id, product_id)
+        product_sale_record_list = list_order_with_order_details_by_product_id_interface(shop.id, product_id)
         product_sale_record_list = self._get_paginated_data(
             product_sale_record_list, AdminProductSaleRecordSerializer
         )

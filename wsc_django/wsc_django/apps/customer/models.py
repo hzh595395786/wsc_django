@@ -1,9 +1,11 @@
 from django.db import models
 
 # Create your models here.
-
+from customer.constant import MineAddressDefault, MineAddressStatus
 from shop.models import Shop
+from user.constant import Sex
 from user.models import User
+from wsc_django.utils.core import FormatAddress
 from wsc_django.utils.models import TimeBaseModel
 
 
@@ -40,3 +42,32 @@ class CustomerPoint(TimeBaseModel):
         db_table = "customer_point"
         verbose_name = "客户历史积分"
         verbose_name_plural = verbose_name
+
+
+class MineAddress(TimeBaseModel):
+    """我的地址模型类"""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="address", null=False, verbose_name="顾客ID")
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="address", null=False, verbose_name="顾客ID")
+    province = models.IntegerField(verbose_name="省份编号")
+    city = models.IntegerField(verbose_name="城市编号")
+    county = models.IntegerField(verbose_name="区编号")
+    address = models.CharField(max_length=64, null=False, verbose_name="详细地址")
+    longitude = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="经度")
+    latitude = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="纬度")
+    name = models.CharField(max_length=32, null=False, verbose_name="顾客姓名")
+    sex = models.SmallIntegerField(null=False, default=Sex.UNKNOWN, verbose_name="顾客性别,0:未知1:男2:女")
+    phone = models.CharField(max_length=32, default="", verbose_name="顾客手机号")
+    default = models.SmallIntegerField(default=MineAddressDefault.NO, verbose_name="是否为默认地址")
+    status = models.SmallIntegerField(default=MineAddressStatus.NORMAL, verbose_name="状态,0:删除1:正常")
+
+    class Meta:
+        db_table = "mine_address"
+        verbose_name = "我的地址"
+        verbose_name_plural = verbose_name
+
+    @property
+    def full_address(self):
+        return FormatAddress.get_format_address(
+            self.province, self.city, self.county, self.address
+        )

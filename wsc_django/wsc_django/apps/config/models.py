@@ -58,7 +58,7 @@ class Receipt(TimeBaseModel):
         null=False,
         on_delete=models.CASCADE,
         verbose_name="一个店铺对应一个小票,就直接绑定"
-    )
+    ).primary_key
     bottom_msg = models.CharField(max_length=128, null=False, default="", verbose_name="小票底部信息")
     bottom_qrcode = models.CharField(max_length=128, null=False, default="", verbose_name="小票底部二维码")
     bottom_image = models.CharField(max_length=512, null=False, default="", verbose_name="小票底部图片,预留")
@@ -78,7 +78,7 @@ class Receipt(TimeBaseModel):
 class MsgNotify(TimeBaseModel):
     """消息通知模型类"""
 
-    id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE)
+    id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE).primary_key
     order_confirm_wx = models.BooleanField(null=False, default=False, verbose_name="开始配送/等待自提-微信")
     order_confirm_msg = models.BooleanField(null=False, default=False, verbose_name="开始配送/等待自提-短信")
     order_finish_wx = models.BooleanField(null=False, default=False, verbose_name="订单完成-微信")

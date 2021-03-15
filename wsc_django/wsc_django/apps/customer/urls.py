@@ -1,7 +1,7 @@
 """
 客户相关的路由
 """
-from django.urls import path
+from django.urls import path, re_path
 
 from customer import views
 
@@ -14,7 +14,8 @@ urlpatterns_admin = [
 ]
 
 urlpatterns_mall = [
-
+    re_path(r'^mall/mine/address/(?P<shop_code>\w+)/$', views.MallMineAddressView.as_view()), # 添加送货地址&修改送货地址&删除送货地址&查询用的所有送货地址
+    re_path(r'^mall/mine/default/address/(?P<shop_code>\w+)/$', views.MallMineDefaultAddressView.as_view()), # 获取一个客户的默认地址
 ]
 
 urlpatterns = urlpatterns_admin + urlpatterns_mall

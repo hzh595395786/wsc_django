@@ -7,7 +7,7 @@ from user.serializers import UserSerializer
 from wsc_django.utils.constant import DateFormat
 
 
-class StaffSerializer(serializers.Serializer):
+class StaffSerializer(UserSerializer):
     """员工序列化器类"""
 
     staff_id = serializers.IntegerField(read_only=True, source="id", label="员工id")
@@ -16,7 +16,6 @@ class StaffSerializer(serializers.Serializer):
     position = serializers.CharField(required=False, min_length=0, max_length=16, allow_null=True, label="员工职位")
     entry_date = serializers.DateField(required=False, format=DateFormat.DAY, allow_null=True, label="入职日期")
     remark = serializers.CharField(required=False, min_length=0, max_length=20, allow_null=True, label="备注")
-    staff_personal_data = UserSerializer(read_only=True, source="user", label="员工个人信息")
     shop_id = serializers.IntegerField(write_only=True, required=False, label="商铺id，仅创建时使用")
     user_id = serializers.IntegerField(write_only=True, required=False, label="用户id，仅创建时使用")
 

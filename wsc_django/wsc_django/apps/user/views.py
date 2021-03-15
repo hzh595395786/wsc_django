@@ -7,14 +7,14 @@ from wechatpy.oauth import WeChatOAuth
 
 from customer.services import create_customer
 from user.utils import jwt_response_payload_handler
-from wsc_django.settings.dev import MP_APPSECRET, MP_APPID
+from wsc_django.apps.settings import MP_APPSECRET, MP_APPID
 from wsc_django.utils.sms import gen_sms_code, YunPianSms, TencentSms
 from wsc_django.utils.views import UserBaseView, MallBaseView
 from user.serializers import UserCreateSerializer
 from user.interface import get_customer_by_user_id_and_shop_id_interface
 from user.services import (
     get_user_by_wx_unionid,
-    get_openid_by_user_and_appid,
+    get_openid_by_user_id_and_appid,
     create_user_openid,
 )
 
@@ -83,7 +83,7 @@ class MallUserView(MallBaseView):
             user_serializer = UserCreateSerializer(data=new_user_info)
             user_serializer.save()
             user = request.user
-        ret, user_openid = get_openid_by_user_and_appid(user.id, shop_appid)
+        ret, user_openid = get_openid_by_user_id_and_appid(user.id, shop_appid)
         # 不存在则添加用户的openid
         if not ret:
             info = {
@@ -91,7 +91,7 @@ class MallUserView(MallBaseView):
                 'mp_appid': shop_appid,
                 'wx_openid': user_info.get("openid"),
             }
-            create_user_openid(info)
+            create_user_openid(**info)
         customer = get_customer_by_user_id_and_shop_id_interface(user.id, shop.id)
         # 新客户则创建客户信息
         if not customer:

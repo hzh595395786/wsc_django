@@ -10,3 +10,13 @@ CUSTOMER_POINT_TYPE = {
     CustomerPointType.CONSUME: "购买货品",
     CustomerPointType.REFUND: "退款",
 }
+
+
+class MineAddressDefault:
+    YES = 1
+    NO = 0
+
+
+class MineAddressStatus:
+    NORMAL = 1
+    DELETE = 0

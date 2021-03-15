@@ -4,7 +4,7 @@ import random
 import requests
 from qcloudsms_py import SmsSingleSender
 
-from wsc_django.settings.dev import (
+from wsc_django.apps.settings import (
     TENCENT_SMS_APPID,
     TENCENT_SMS_APPKEY,
     YUNPIAN_SYSTEM_APIKEY,

@@ -5,7 +5,7 @@ from config.services import create_receipt_by_shop
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
 from shop.constant import ShopStatus
-from shop.services import create_shop, create_shop_reject_reason_by_shop_id
+from shop.services import create_shop, create_shop_reject_reason_by_shop_id, create_pay_channel
 from staff.services import create_super_admin_staff
 from user.serializers import UserSerializer, operatorSerializer
 from wsc_django.utils.constant import DateFormat
@@ -178,5 +178,19 @@ class SuperShopVerifySerializer(serializers.Serializer):
         instance.shop_verify_content = verify_content
         instance.save()
         return instance
+
+
+class ShopPayChannelSerializer(serializers.Serializer):
+    """总后台支付渠道序列化器类"""
+
+    smerchant_no = serializers.CharField(label="商户号")
+    terminal_id1 = serializers.CharField(label="终端号1")
+    access_token = serializers.CharField(label="扫呗access_token")
+    channel_type = serializers.IntegerField(label="支付渠道, 1:利楚, 2:建行")
+
+    def create(self, validated_data):
+        shop = self.context["shop"]
+        shop_pay_channel = create_pay_channel(validated_data, shop.id)
+        return shop_pay_channel
 
 

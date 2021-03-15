@@ -36,7 +36,7 @@ class DeliveryConfig(TimeBaseModel):
         null=False,
         on_delete=models.CASCADE,
         verbose_name="店铺id"
-    )
+    ).primary_key
     # 配送模式
     home_on = models.BooleanField(null=False, default=True, verbose_name="配送模式是否开启")
     home_minimum_order_amount = models.DecimalField(

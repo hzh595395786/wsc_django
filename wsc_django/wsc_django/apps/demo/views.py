@@ -6,8 +6,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework_jwt.settings import api_settings
 
+from celery_tasks.celery_autowork_task import auto_cancel_order
+from celery_tasks.celery_tplmsg_task import OrderCommitTplMsg
 from demo.serializers import DemoSerializer
-from shop.models import HistoryRealName
+from shop.models import HistoryRealName, Shop
 from user.models import User
 from wsc_django.utils.views import GlobalBaseView, UserBaseView
 
@@ -26,7 +28,8 @@ class DemoView(GlobalBaseView):
     pagination_class = StandardResultsSetPagination
 
     def get(self, request):
-        user = User.objects.filter(id=1).first()
+        user_id = request.query_params.get("user_id")
+        user = User.objects.filter(id=user_id).first()
         jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
         jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
         payload = jwt_payload_handler(user)
@@ -34,12 +37,6 @@ class DemoView(GlobalBaseView):
         return self.send_success(token=token)
 
     def post(self, request):
-        params = {
-            'response_type': 'code',
-            'redirect_uri':'https://127.0.0.1:8000',
-            'state': 'STATE#wechat_redirect',
-            'appid':"wx819299c9d4c7bd24",
-            'scope':"snsapi_login"
-        }
-        url = 'https://open.weixin.qq.com/connect/qrconnect?' + urlencode(params)
-        return Response({'login_url':url})
+        res = auto_cancel_order.apply_async(args=[1,1], countdown=15 * 60)
+        print(res)
+        return Response()

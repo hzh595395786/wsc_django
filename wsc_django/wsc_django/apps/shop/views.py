@@ -2,7 +2,7 @@ from webargs import fields, validate
 from rest_framework import status
 from webargs.djangoparser import use_args
 
-from shop.constant import ShopStatus, ShopVerifyActive, ShopVerifyType
+from shop.constant import ShopStatus, ShopVerifyActive, ShopVerifyType, ShopPayActive, ShopPayChannelType
 from shop.models import Shop
 from staff.constant import StaffRole
 from staff.serializers import StaffSerializer
@@ -12,6 +12,7 @@ from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import UserBaseView, AdminBaseView, MallBaseView
 from shop.serializers import (
     ShopCreateSerializer,
+    ShopPayChannelSerializer,
     SuperShopSerializer,
     SuperShopListSerializer,
     SuperShopStatusSerializer,
@@ -293,6 +294,73 @@ class SuperShopVerifyView(UserBaseView):
         return self.send_success()
 
 
+class SuperShopPayVerifyView(UserBaseView):
+    """总后台-修改店铺支付认证"""
+
+    @use_args(
+        {
+            "shop_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="店铺ID"
+            ),
+            "payment_status": fields.Integer(
+                required=True,
+                validate=[
+                    validate.OneOf(
+                        [
+                            ShopPayActive.YES,
+                            ShopPayActive.CHECKING,
+                            ShopPayActive.REJECTED,
+                        ]
+                    )
+                ],
+                comment="认证状态",
+            ),
+            "lc_merchant_no": fields.String(
+                required=False, validate=[validate.Length(0, 15)], comment="商户号"
+            ),
+            "lc_terminal_id": fields.String(
+                required=False, validate=[validate.Length(0, 50)], comment="终端号"
+            ),
+            "lc_access_token": fields.String(
+                required=False,
+                validate=[validate.Length(0, 32)],
+                comment="扫呗access_token",
+            ),
+        },
+        location="json"
+    )
+    def post(self, request, args):
+        shop = get_shop_by_shop_id(args.get("shop_id"))
+        if not shop:
+            return self.send_fail(error_text="店铺不存在")
+        payment_status = args.get("payment_status")
+        if shop.pay_active == payment_status:
+            text = (
+                "正在审核中"
+                if payment_status == ShopPayActive.CHECKING
+                else "已通过审核"
+                if payment_status == ShopPayActive.YES
+                else "已拒绝审核"
+            )
+            return self.send_fail(error_text="该店铺%s, 请不要重复操作"%text)
+        shop.pay_active = payment_status
+        # 创建paychannel
+        if shop.pay_active == ShopPayActive.YES:
+            pay_channel_info = {
+                "smerchant_no": args.get("lc_merchant_no"),
+                "terminal_id1": args.get("lc_terminal_id"),
+                "access_token": args.get("lc_access_token"),
+                "channel_type": ShopPayChannelType.LCSW,
+            }
+            serializer = ShopPayChannelSerializer(data=pay_channel_info, context={"shop":shop})
+            if serializer.is_valid():
+                return self.send_error(
+                    error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+                )
+            serializer.save()
+        return self.send_success()
+
+
 class AdminShopView(AdminBaseView):
     """商户后台-商铺-获取当前店铺与用户信息"""
 
@@ -300,8 +368,8 @@ class AdminShopView(AdminBaseView):
         user = self.current_user
         shop = self.current_shop
         staff = self.current_staff
-        staff_personal_data = {_:getattr(user, _)for _ in USER_OUTPUT_CONSTANT}
-        staff.staff_personal_data = staff_personal_data
+        for _ in USER_OUTPUT_CONSTANT:
+            setattr(staff, _, getattr(user, _))
         shop_serializer = AdminShopSerializer(shop)
         staff_serializer = StaffSerializer(staff)
         return self.send_success(shop_data=shop_serializer.data, staff_data=staff_serializer.data)

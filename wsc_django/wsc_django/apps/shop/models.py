@@ -58,6 +58,30 @@ class Shop(TimeBaseModel):
         ]
 
 
+class PayChannel(TimeBaseModel):
+    """支付渠道模型类"""
+
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="店铺对象")
+    smerchant_no = models.CharField(max_length=15, null=False, default="", verbose_name="商户号")
+    smerchant_name = models.CharField(max_length=100, null=False, default="", verbose_name="商户名")
+    smerchant_type_id = models.CharField(max_length=15, null=False, default="", verbose_name="商户类别id")
+    smerchant_type_name = models.CharField(max_length=81, null=False, default="", verbose_name="商户类别名")
+    pos_id = models.CharField(max_length=9, null=False, default="", verbose_name="柜台号")
+    terminal_id1 = models.CharField(max_length=50, null=False, default="", verbose_name="终端号1")
+    terminal_id2 = models.CharField(max_length=50, null=False, default="", verbose_name="终端号2")
+    access_token = models.CharField(max_length=32, null=False, default="", verbose_name="扫呗access_token")
+    clearing_rate = models.FloatField(null=False, default=2.8, verbose_name="商户的清算费率,利楚默认是千分之2.8，建行是0")
+    clearing_account_id = models.IntegerField(null=False, default=0, verbose_name="商户的清算账号ID")
+    channel_type = models.SmallIntegerField(null=False, default=0, verbose_name="支付渠道, 1:利楚, 2:建行")
+    pub_key = models.CharField(max_length=500, verbose_name="账户公匙")
+    province = models.CharField(max_length=32, null=False, default="Hubei", verbose_name="用户所在省份")
+
+    class Meta:
+        db_table = "pay_channel"
+        verbose_name = "支付渠道"
+        verbose_name_plural = verbose_name
+
+
 class HistoryRealName(TimeBaseModel):
     """存储店铺创建者的历史真实姓名"""
 

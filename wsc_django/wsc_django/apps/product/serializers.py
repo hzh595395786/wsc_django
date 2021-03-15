@@ -2,7 +2,7 @@ from django.db import transaction
 from pypinyin import slug
 from rest_framework import serializers
 
-from customer.serializers import AdminCustomerSerializer
+from user.serializers import UserSerializer
 from wsc_django.utils.constant import DateFormat
 from wsc_django.utils.core import FuncField
 from product.services import (
@@ -24,8 +24,12 @@ class ProductCreateSerializer(serializers.Serializer):
     product_id = serializers.IntegerField(source="id", read_only=True, label="货品id")
     name = serializers.CharField(max_length=15, min_length=1, required=True, label="货品名称")
     group_id = serializers.IntegerField(required=True, label="货品分组id")
-    price = serializers.DecimalField(max_digits=13, decimal_places=4, required=True, min_value=0, label="货品单价")
-    storage = serializers.DecimalField(max_digits=13, decimal_places=4, required=True, min_value=0, label="货品库存")
+    price = serializers.DecimalField(
+        max_digits=13, decimal_places=4, required=True, min_value=0, label="货品单价"
+    )
+    storage = serializers.DecimalField(
+        max_digits=13, decimal_places=4, required=True, min_value=0, label="货品库存"
+    )
     code = serializers.CharField(required=False, label="货品编码")
     summary = serializers.CharField(max_length=20, min_length=0, required=False, label="货品简介")
     pictures = serializers.ListField(
@@ -157,11 +161,11 @@ class AdminProductSaleRecordSerializer(serializers.Serializer):
     """货品销售记录序列化器类"""
 
     create_time = serializers.DateTimeField(format=DateFormat.TIME, label="创建时间")
-    order_num = serializers.CharField(source="num", label="订单号")
+    order_num = serializers.CharField(label="订单号")
     price_net = FuncField(lambda value: round(float(value), 2), label="单价（优惠后）")
     quantity_net = FuncField(lambda value: round(float(value), 2), label="量（优惠后）")
     amount_net = FuncField(lambda value: round(float(value), 2), label="金额（优惠后）")
-    customer = AdminCustomerSerializer(label="客户信息")
+    customer_data = UserSerializer(label="客户信息")
 
 
 class MallProductSerializer(AdminProductSerializer):
@@ -172,3 +176,5 @@ class MallProductSerializer(AdminProductSerializer):
 class MallProductGroupSerializer(AdminProductGroupSerializer):
     """商城端货品分组序列化器类"""
     pass # 继承父类
+
+

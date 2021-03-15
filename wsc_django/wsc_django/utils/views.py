@@ -1,6 +1,4 @@
 """自己定义的视图类"""
-from collections import OrderedDict
-
 from rest_framework import status, exceptions
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView

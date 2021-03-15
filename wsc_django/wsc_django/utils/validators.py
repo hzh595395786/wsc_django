@@ -3,6 +3,7 @@ import re
 
 from rest_framework import serializers
 
+from order.constant import OrderDeliveryMethod, OrderPayType
 from shop.constant import ShopVerifyActive, ShopVerifyType, ShopStatus
 from staff.services import cal_all_roles_without_super, cal_all_permission
 
@@ -50,18 +51,24 @@ def shop_verify_type_validator(value):
         raise serializers.ValidationError("商铺认证类型有误")
 
 
-########员工相关###########
-def staff_permission_validator(value):
-    """员工权限验证"""
+########订单相关###########
+def delivery_method_validator(value):
+    """订单配送方式验证"""
 
-    all_permission = cal_all_permission()
-    if value not in range(0, all_permission+1):
-        raise serializers.ValidationError("用户权限有误")
+    delivery_method_list = [
+        OrderDeliveryMethod.HOME_DELIVERY,
+        OrderDeliveryMethod.CUSTOMER_PICK,
+    ]
+    if value not in delivery_method_list:
+        raise serializers.ValidationError("配送方式有误")
 
 
-def staff_role_validator(value):
-    """员工权限验证"""
+def order_pay_type_validator(value):
+    """订单支付方式验证"""
 
-    all_roles = cal_all_roles_without_super()
-    if value not in range(0, all_roles+1):
-        raise serializers.ValidationError("用户角色有误")
+    order_pay_type_list = [
+        OrderPayType.WEIXIN_JSAPI,
+        OrderPayType.ON_DELIVERY
+    ]
+    if value not in order_pay_type_list:
+        raise serializers.ValidationError("订单支付方式有误")

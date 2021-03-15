@@ -2,7 +2,7 @@ from uuid import uuid4
 from django.db.models import Count
 
 from product.constant import ProductStatus
-from shop.models import Shop, HistoryRealName, ShopRejectReason
+from shop.models import Shop, HistoryRealName, ShopRejectReason, PayChannel
 from user.models import User
 from shop.constant import (
     ShopStatus,
@@ -18,7 +18,7 @@ def create_shop(shop_info: dict, user: User):
         "shop_province": 420000,
         "shop_city": 420100,
         "shop_county": 420101,
-        "shop_county": "光谷智慧谷一栋505",
+        "shop_address": "光谷智慧谷一栋505",
         "description": "xxxx",
         "suggest_phone": "153xxxxxxxx",
         "shop_phone": "152xxxxxxxx",
@@ -40,6 +40,18 @@ def create_shop(shop_info: dict, user: User):
     shop = Shop.objects.create(**shop_info)
     shop.save()
     return shop
+
+
+def create_pay_channel(pay_channel_info: dict, shop_id: int):
+    """
+    创建一个商铺的pay_channel
+    :param pay_channel_info:
+    :param shop_id:
+    :return:
+    """
+    shop_pay_channel = PayChannel.objects.create(shop_id=shop_id, **pay_channel_info)
+    shop_pay_channel.save()
+    return shop_pay_channel
 
 
 def create_shop_reject_reason_by_shop_id(shop: Shop, reject_reason: str):
