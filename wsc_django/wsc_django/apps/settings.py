@@ -155,7 +155,7 @@ DATABASES = {
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
         'USER': 'wsc_django',  # 数据库用户名
-        'PASSWORD': 'wsc',  # 数据库用户密码
+        'PASSWORD': 'wsc_django',  # 数据库用户密码
         'NAME': 'wsc_django',  # 数据库名字
     }
 }
@@ -235,7 +235,7 @@ LCSW_INST_NO = "52100011"
 LCSW_INST_KEY = "a6540e60532a4f5f9207536cdd37d83d"
 
 # celery broker相关
-CELERY_BROKER = "amqp://wsc:123456@192.168.247.128:5672//"
+CELERY_BROKER = "amqp://guest@localhost:5674//"
 
 # 前端商城域名
 WSC_HOST_NAME = ""
