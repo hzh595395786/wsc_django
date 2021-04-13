@@ -1,10 +1,12 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from user.serializers import UserSerializer
+from customer.serializers import AdminCustomerSerializer
 from customer.services import get_customer_by_user_id_and_shop_id, create_customer
 from delivery.serializers import AdminDeliverySerializer
 from order.services import create_order, _create_order_details, _create_order_address
+from user.serializers import UserSerializer
+from wsc_django.utils.constant import DateFormat
 from wsc_django.utils.core import NumGenerator, FuncField
 from wsc_django.utils.validators import delivery_method_validator, order_pay_type_validator
 
@@ -35,11 +37,13 @@ class AdminOrderDetailSerializer(serializers.Serializer):
 class AdminOrderSerializer(serializers.Serializer):
     """后台订单序列化器类"""
 
+    id = serializers.IntegerField(label="订单id")
     delivery_method = serializers.IntegerField(
         required=True, validators=[delivery_method_validator], label="配送方式：1：送货上门，2：客户自提"
     )
     delivery_period = serializers.CharField(required=True, label="自提时间段（仅自提必传），举例：今天 12:00~13:00")
     order_num = serializers.CharField(required=True, label="订单号")
+    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="下单时间")
     pay_type = serializers.IntegerField(
         required=True, validators=[order_pay_type_validator], label="支付方式：1：微信支付，2：货到付款"
     )
@@ -66,8 +70,33 @@ class AdminOrderSerializer(serializers.Serializer):
     address = OrderAddressSerializer(required=False, label="订单地址")
     order_status = serializers.IntegerField(required=False, label="订单状态")
     refund_type = serializers.IntegerField(required=False, label="退款方式")
-    customer_data = UserSerializer(required=False, label="订单对应的客户对象")
+    customer = AdminCustomerSerializer(required=False, label="订单对应的客户对象")
     delivery = AdminDeliverySerializer(required=False, label="订单对应的配送记录对象")
+    order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
+
+
+class AdminOrdersSerializer(serializers.Serializer):
+    """后台订单列表序列化器类，不需要那么多信息"""
+
+    id = serializers.IntegerField(label="订单id")
+    delivery_method = serializers.IntegerField(
+        required=True, validators=[delivery_method_validator], label="配送方式：1：送货上门，2：客户自提"
+    )
+    delivery_period = serializers.CharField(required=True, label="自提时间段（仅自提必传），举例：今天 12:00~13:00")
+    order_num = serializers.CharField(required=True, label="订单号")
+    order_status = serializers.IntegerField(required=False, label="订单状态")
+    remark = serializers.CharField(required=False, default="", min_length=0, max_length=30, label="订单备注")
+    pay_type = serializers.IntegerField(
+        required=True, validators=[order_pay_type_validator], label="支付方式：1：微信支付，2：货到付款"
+    )
+    order_type = serializers.IntegerField(
+        required=True, label="订单类型,1:普通订单，2：拼团订单"
+    )
+    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="下单时间")
+    total_amount_net = serializers.DecimalField(
+        required=True, max_digits=13, decimal_places=4, label="订单金额（优惠后）"
+    )
+    customer = AdminCustomerSerializer(required=False, label="订单对应的客户对象")
     order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
 
 
@@ -119,3 +148,26 @@ class MallOrderSerializer(AdminOrderSerializer):
     amount_net = FuncField(lambda value: round(float(value), 2), label="货品总额")
     delivery_amount_net = FuncField(lambda value: round(float(value), 2), label="配送费/服务费")
     total_amount_net = FuncField(lambda value: round(float(value), 2), label="订单总额")
+
+
+class MallOrdersSerializer(serializers.Serializer):
+    """商城端订单列表序列化器类"""
+
+    id = serializers.IntegerField(label="订单id")
+    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="下单时间")
+    order_type = serializers.IntegerField(label="订单类型,1:普通订单，2：拼团订单")
+    order_status = serializers.IntegerField(required=False, label="订单状态")
+    delivery_method = serializers.IntegerField(label="配送方式：1：送货上门，2：客户自提")
+    delivery_type = serializers.IntegerField(required=False, label="订单配送类型:员工/快递")
+    total_amount_gross = serializers.DecimalField(max_digits=13, decimal_places=4, label="订单金额（优惠前）")
+    order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
+
+
+class OrderLogSerializer(serializers.Serializer):
+    """订单日志序列化器类"""
+
+    operate_type_text = serializers.CharField(label="操作类型文字版")
+    operate_type = serializers.IntegerField(label="操作类型")
+    operate_content = serializers.CharField(label="操作内容")
+    operate_time = serializers.DateTimeField(format=DateFormat.TIME, label="操作时间")
+    operator = UserSerializer(label="操作人信息")

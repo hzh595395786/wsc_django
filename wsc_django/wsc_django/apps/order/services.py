@@ -1,28 +1,39 @@
 import decimal
+import hashlib
+import json
 import uuid
 
+import requests
 from django.db.models import Count
 
 from config.services import get_printer_by_shop_id
 from customer.models import Customer
 from delivery.services import _convert_delivery_period, apply_promotion
-from order.constant import OrderStatus, OrderType, OrderPayType, OrderDeliveryMethod
+from logs.constant import OrderLogType
+from logs.services import create_order_log
+from order.constant import OrderStatus, OrderType, OrderPayType, OrderDeliveryMethod, OrderRefundType
 from order.models import Order, OrderDetail, OrderAddress
-from payment.service import payment_query, create_order_transaction
+from payment.service import payment_query, create_order_transaction, get_order_transaction_by_order_id
 from printer.services import print_order
 from product.constant import ProductStatus
 from product.services import update_product_storage, list_product_by_ids
+from settings import LCSW_HANDLE_HOST
 from shop.models import Shop
 from shop.services import get_shop_by_shop_id
 from storage.constant import ProductStorageRecordType, ProductStorageRecordOperatorType
+from user.services import get_pay_channel_by_shop_id
+from ws.services import publish_admin
+from wsc_django.utils.lcsw import LcswFunds, LcswPay
 from customer.services import (
     get_customer_by_customer_id_and_shop_id,
+    update_customer_consume_amount_and_point_by_refund,
     update_customer_consume_amount_and_count_and_point_by_consume,
 )
 from order.selectors import (
     list_order_details_by_order_id,
     get_order_by_shop_id_and_id,
-    get_shop_order_by_shop_id_and_id
+    get_shop_order_by_shop_id_and_id,
+    count_abnormal_order
 )
 
 
@@ -218,6 +229,210 @@ def order_data_check(shop_id: int, args: dict):
     return True, order_info
 
 
+def count_paid_order(shop_id: int):
+    """
+    获取一个店铺未处理(已支付)的订单
+    :param shop_id:
+    :return:
+    """
+    result = (
+        Order.objects.filter(shop_id=shop_id, order_status=OrderStatus.PAID).
+        annotate(count=Count("id")).first()
+    )
+    count = 0
+    if result:
+        count = result.count
+    return count
+
+
+def direct_pay(order: Order):
+    """
+    直接支付完成流程
+    :param order:
+    :return:
+    """
+    set_order_status_paid(order, OrderStatus.PAID)
+    # 增加消费额与积分
+    update_customer_consume_amount_and_count_and_point_by_consume(
+        order.customer.id, order.total_amount_net
+    )
+    paid_order_count = count_paid_order(order.shop.id)
+    publish_admin(order.shop.id, "new_order", {"count": paid_order_count})
+    # 订单打印
+    printer = get_printer_by_shop_id(order.shop.id)
+    if not printer or not printer.auto_print:
+        return True, order
+    success, order_for_print = get_shop_order_by_shop_id_and_id(order.shop.id, order.id)
+    if not success:
+        return True, order
+    success, _ = print_order(order_for_print, 0)
+    if not success:
+        return True, order
+    return True, order
+
+
+def cancel_order(shop_id: int, order_id: int):
+    """
+    取消订单
+    :param shop_id:
+    :param order_id:
+    :return:
+    """
+    order = get_order_by_shop_id_and_id(shop_id, order_id)
+    if not order:
+        return False, "订单不存在"
+    elif order.order_status != OrderStatus.UNPAID:
+        return False, "订单状态已改变"
+    elif order.pay_type == OrderPayType.WEIXIN_JSAPI:
+        tag, ret_dict = payment_query(order)
+        if tag == 2:
+            create_order_transaction(
+                order.id,
+                ret_dict["out_trade_no"],
+                ret_dict["total_fee"],
+                ret_dict["channel_trade_no"],
+            )
+            set_order_paid(order)
+            return False, "订单已支付, 暂无法取消"
+
+    success, error_obj = set_order_status_canceled(order)
+    return success, error_obj
+
+
+def payment_refund(order: Order):
+    """
+    订单退款, 直接返回字典
+    :param order:
+    :return: 字典说明:out_trade_no,out_refund_no必有的；1,+msg;2,+total_fee
+    """
+    success, pay_channel = get_pay_channel_by_shop_id(order.shop.id)
+    if not success:
+        return False, pay_channel
+    # 先检查一下用户的可用余额是否足够
+    query_dict = LcswFunds.queryWithdrawal(pay_channel.smerchant_no)
+    # 先全部退
+    refund_fee = int(round(order.total_amount_net * 100))
+    if query_dict["return_code"] == "01" and query_dict["result_code"] == "01":
+        not_settle_amt = int(query_dict["not_settle_amt"])
+        if (
+                round(not_settle_amt * 1000 / (1000 - pay_channel.clearing_rate))
+                < refund_fee
+        ):
+            return False, "退款失败，当前账户{text}".format(text="余额不足")
+    else:
+        return (
+            False,
+            "订单退款外部请求失败: {text}".format(text=query_dict["return_msg"]),
+        )
+    order_transaction = get_order_transaction_by_order_id(order.id)
+    if order_transaction:
+        pay_type = "010"
+        parameters = LcswPay.getRefundParas(
+            pay_type,
+            order.order_num,
+            order_transaction.transaction_id,
+            str(refund_fee),
+            pay_channel.smerchant_no,
+            pay_channel.terminal_id1,
+            pay_channel.access_token,
+        )
+    else:
+        return False, "订单退款外部请求失败: {text}".format(text="找不到交易(SG:no-transaction)")
+    try:
+        r = requests.post(
+            LCSW_HANDLE_HOST + "/pay/100/refund",
+            data=json.dumps(parameters),
+            verify=False,
+            headers={"content-type": "application/json"},
+            timeout=(1, 10),
+        )
+        res_dict = json.loads(r.text)
+    except:
+        return False, "订单退款外部请求失败: {text}".format(text="退款接口超时或返回异常，请稍后再试(LC)")
+
+    # 响应码：01成功，02失败，响应码仅代表通信状态，不代表业务结果
+    if res_dict["return_code"] == "02":
+        return False, "订单退款外部请求失败: {text}".format(text=res_dict["return_msg"])
+    key_sign = res_dict["key_sign"]
+    str_sign = LcswPay.getStrForSignOfRefundRet(res_dict)
+    if key_sign != hashlib.md5(str_sign.encode("utf-8")).hexdigest().lower():
+        return False, "订单退款外部请求失败: {text}".format(text="签名有误")
+
+    # 业务结果：01成功 02失败
+    result_code = res_dict["result_code"]
+    if result_code == "02":
+        return False, "订单退款外部请求失败: {text}".format(text=res_dict["return_msg"])
+    else:
+        return True, None
+
+
+def refund_order(
+    shop_id: int, order: Order, refund_type: int, user_id: int = 0
+):
+    """
+    订单退款
+    :param shop_id:
+    :param order:
+    :param refund_type:
+    :param user_id:
+    :return:
+    """
+    if (
+            order.pay_type == OrderPayType.WEIXIN_JSAPI
+            and refund_type == OrderRefundType.WEIXIN_JSAPI_REFUND
+    ):
+        success, result = payment_refund(order)
+        if not success:
+            if order.order_type == OrderType.GROUPON and user_id == 0:
+                set_order_status_refund_failed(order, user_id, result)
+                abnormal_order_count = count_abnormal_order(shop_id)
+                publish_admin(
+                    shop_id, "abnormal_order", {"count": abnormal_order_count}
+                )
+            return False, result
+
+    set_order_status_refunded(order, user_id, refund_type)
+    return True, None
+
+
+def set_order_status_refunded(order: Order, user_id: int, refund_type: int):
+    """
+    将订单设为退款, 对应的子订单也设为退款, 商品库存回退
+    :param order:
+    :param user_id:
+    :param refund_type:
+    :return:
+    """
+    order.order_status = OrderStatus.REFUNDED
+    order.refund_type = refund_type
+    order_detail_list = list_order_details_by_order_id(order.id)
+    order_detail_list.update(order_status=OrderStatus.REFUNDED, refund_type=refund_type)
+    for order_detail in order_detail_list:
+        change_storage = order_detail.quantity_net
+        update_product_storage(
+            order_detail.product,
+            order_detail.customer.user.id,
+            change_storage,
+            ProductStorageRecordType.ORDER_CANCEL,
+            ProductStorageRecordOperatorType.CUSTOMER,
+            order.order_num,
+        )
+    # 订单退款,客户积分同时也扣减
+    update_customer_consume_amount_and_point_by_refund(
+        order.customer.id, order.total_amount_net
+    )
+    # 生成操作记录
+    log_info = {
+        "order_id":order.id,
+        "order_num": order.order_num,
+        "shop_id": order.shop.id,
+        "operator_id": user_id,
+        "operate_type": OrderLogType.REFUND,
+    }
+    create_order_log(log_info)
+    order.save()
+
+
 def set_order_paid(order: Order):
     """
     将订单设置为已支付状态,同时生成一些其他的数据
@@ -242,76 +457,8 @@ def set_order_status_paid(order: Order, order_status: int):
 
     order.order_status = order_status
     order_detail_list = list_order_details_by_order_id(order.id)
-    for order_detail in order_detail_list:
-        order_detail.order_status = order_status
-        order_detail.save()
-
-
-def count_paid_order(shop_id: int):
-    """
-    获取一个店铺未处理(已支付)的订单
-    :param shop_id:
-    :return:
-    """
-    result = (
-        Order.objects.filter(shop_id=shop_id, order_status=OrderStatus.PAID).
-        annotate(count=Count("id")).first()
-    )
-    return result
-
-
-def direct_pay(order: Order):
-    """
-    直接支付完成流程
-    :param order:
-    :return:
-    """
-    set_order_status_paid(order, OrderStatus.PAID)
-    # 增加消费额与积分
-    update_customer_consume_amount_and_count_and_point_by_consume(
-        order.customer.id, order.total_amount_net
-    )
-    paid_order_count = count_paid_order(order.shop.id)
-    # publish_admin(order.shop.id, "new_order", {"count": paid_order_count})
-    # 订单打印
-    printer = get_printer_by_shop_id(order.shop.id)
-    if not printer or not printer.auto_print:
-        return True, order
-    success, order_for_print = get_shop_order_by_shop_id_and_id(order.shop.id, order.id)
-    if not success:
-        return True, order
-    success, _ = print_order(order_for_print, 0)
-    if not success:
-        return True, order
-    return True, order
-
-
-def cancel_order(shop_id: int, order_id: int):
-    """
-    取消订单
-    :param shop_id:
-    :param order_id:
-    :return:
-    """
-    order = get_order_by_shop_id_and_id(shop_id, order_id)
-    if not order:
-        return False, "订单不存在"
-    elif order.status != OrderStatus.UNPAID:
-        return False, "订单状态已改变"
-    elif order.pay_type == OrderPayType.WEIXIN_JSAPI:
-        tag, ret_dict = payment_query(order)
-        if tag == 2:
-            create_order_transaction(
-                order.id,
-                ret_dict["out_trade_no"],
-                ret_dict["total_fee"],
-                ret_dict["channel_trade_no"],
-            )
-            set_order_paid(order)
-            return False, "订单已支付, 暂无法取消"
-
-    success, error_obj = set_order_status_canceled(order)
-    return success, error_obj
+    order_detail_list.update(order_status=order_status)
+    order.save()
 
 
 def set_order_status_canceled(order: Order):
@@ -321,11 +468,10 @@ def set_order_status_canceled(order: Order):
     :return:
     """
     customer = get_customer_by_customer_id_and_shop_id(order.customer.id, order.shop.id)
-    order.status = OrderStatus.CANCELED
+    order.order_status = OrderStatus.CANCELED
     order_detail_list = list_order_details_by_order_id(order.id)
+    order_detail_list.update(order_status=OrderStatus.CANCELED)
     for order_detail in order_detail_list:
-        order_detail.status = OrderStatus.CANCELED
-        order_detail.save()
         change_storage = order_detail.quantity_net
         update_product_storage(
             order_detail.product,
@@ -335,5 +481,67 @@ def set_order_status_canceled(order: Order):
             ProductStorageRecordOperatorType.CUSTOMER,
             order.order_num,
         )
-
+    order.save()
     return True, None
+
+
+def set_order_status_confirmed_finish(
+    order: Order, order_status: int, user_id: int, operate_type: int
+):
+    """
+    将订单的状态设为开始处理, 已完成
+    :param order:
+    :param order_status:
+    :param user_id:
+    :param operate_type:
+    :return:
+    """
+    assert order_status in [OrderStatus.CONFIRMED, OrderStatus.FINISHED]
+
+    order.order_status = order_status
+    order_detail_list = list_order_details_by_order_id(order.id)
+    order_detail_list.update(order_status=order_status)
+    # 生成操作记录
+    log_info = {
+        "order_id": order.id,
+        "order_num": order.order_num,
+        "shop_id": order.shop.id,
+        "operator_id": user_id,
+        "operate_type": operate_type,
+    }
+    create_order_log(log_info)
+    order.save()
+
+
+def set_order_status_refund_failed(
+    order: Order, user_id: int, error_text: str
+):
+    """
+    将订单设置为退款失败, 对应的子订单设置为退款失败
+    :param order:
+    :param user_id:
+    :param error_text:
+    :return:
+    """
+    order.order_status = OrderStatus.REFUND_FAIL
+    order_detail_list = list_order_details_by_order_id(order.id)
+    order_detail_list.update(order_status=OrderStatus.REFUND_FAIL)
+    if error_text in [
+        "店铺未开通线上支付",
+        "店铺支付渠道错误",
+    ]:
+        operate_content = "支付通道错误"
+    elif error_text == "退款失败，当前账户{text}".format(text="余额不足"):
+        operate_content = "余额不足"
+    else:
+        operate_content = "其他"
+    log_info = {
+        "order_id":order.id,
+        "shop_id": order.shop.id,
+        "operator_id": user_id,
+        "order_num": order.order_num,
+        "operate_type": OrderLogType.REFUND_FAIL,
+        "operate_content": operate_content,
+    }
+    create_order_log(log_info)
+    order.save()

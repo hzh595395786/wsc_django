@@ -64,6 +64,19 @@ def create_shop_reject_reason_by_shop_id(shop: Shop, reject_reason: str):
     return reject_reason
 
 
+def update_shop_data(shop: Shop, args: dict):
+    """
+    修改店铺信息
+    :param shop:
+    :param args:
+    :return:
+    """
+    for k, v in args.items():
+        setattr(shop, k, v)
+    shop.save()
+    return shop
+
+
 def get_shop_by_shop_code(shop_code: str, only_normal: bool = True):
     """
     通过shop_code获取shop对象

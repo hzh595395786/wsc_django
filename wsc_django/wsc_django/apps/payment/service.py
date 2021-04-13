@@ -241,3 +241,13 @@ def get_wx_jsApi_pay(order: Order, wx_openid: str):
     }
     return True, renderPayParams
 
+
+def get_order_transaction_by_order_id(order_id: int):
+    """
+    通过订单id获取交易记录
+    :param order_id:
+    :return:
+    """
+    order_transaction = OrderTransaction.objects.filter(order_id=order_id).first()
+    return order_transaction
+

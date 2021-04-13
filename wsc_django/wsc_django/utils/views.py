@@ -88,7 +88,9 @@ class UserBaseView(GlobalBaseView):
 
     def initialize_request(self, request, *args, **kwargs):
         request = super().initialize_request(request, *args, **kwargs)
-        user = self._get_current_user(request)
+        # todo 临时使用 免去登录
+        # user = self._get_current_user(request)
+        user = User.objects.get(id=1)
         self.current_user = user
         # 用于WSCIsLoginAuthenticate中进行验证
         request.current_user = self.current_user
@@ -124,9 +126,11 @@ class StaffBaseView(UserBaseView):
 
     def initialize_request(self, request, *args, **kwargs):
         request = super().initialize_request(request, *args, **kwargs)
-        wsc_shop_id = request.COOKIES.get("wsc_shop_id", 0)
+        wsc_shop_id = request.get_signed_cookie("wsc_shop_id", salt="微商城商铺id")
         # 从cookie中获取shop_id进行查询
         shop = get_shop_by_shop_id(int(wsc_shop_id))
+        # # todo 临时使用 免去cookie
+        # shop = get_shop_by_shop_id(1)
         self.current_shop = shop
         current_staff = None
         if shop and self.current_user:

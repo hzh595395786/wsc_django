@@ -1,0 +1,1 @@
+CHANNEL_ADMIN = "websocket:admin"  # 后台websocket频道

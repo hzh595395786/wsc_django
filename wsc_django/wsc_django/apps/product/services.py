@@ -26,15 +26,18 @@ def create_product(product_info: dict, user_id: int):
     return product
 
 
-def create_product_picture(product_id: int, image_url: str):
+def create_product_pictures(product_id: int, image_url_list: list):
     """
     添加货品的一个轮播图
     :param product_id:
     :param image_url:
     :return:
     """
-    product_picture = ProductPicture(product_id=product_id, image_url=image_url)
-    product_picture.save()
+    product_picture_list = []
+    for image_url in image_url_list:
+        product_picture = ProductPicture(product_id=product_id, image_url=image_url)
+        product_picture_list.append(product_picture)
+    ProductPicture.objects.bulk_create(product_picture_list)
 
 
 def update_product_storage(
@@ -111,10 +114,7 @@ def delete_product_picture_by_product_id(product_id: int):
     :param product_id:
     :return:
     """
-    product_pictures = ProductPicture.objects.filter(product_id=product_id).all()
-    for pp in product_pictures:
-        pp.delete()
-        pp.save()
+    product_pictures = ProductPicture.objects.filter(product_id=product_id).delete()
 
 
 def delete_product_by_ids_and_shop_id(product_ids: list, shop_id: int):
@@ -174,6 +174,8 @@ def get_product_by_id(
     if product and with_picture:
         product_pictures = ProductPicture.objects.filter(product_id=product_id).all()
         product.pictures = [pp.image_url for pp in product_pictures]
+    if product and not with_picture:
+        product.pictures = []
     return product
 
 
@@ -184,7 +186,7 @@ def get_product_with_group_name(shop_id: int, product_id: int):
     :param product_id:
     :return:
     """
-    product = get_product_by_id(shop_id, product_id)
+    product = get_product_by_id(shop_id, product_id, with_picture=True)
     if product:
         product_group = get_product_group_by_shop_id_and_id(shop_id, product.group_id)
         product.group_name = product_group.name
@@ -267,6 +269,17 @@ def list_product_by_shop_id(shop_id: int, status=None):
     return product_list
 
 
+def list_product_ids_by_shop_id(shop_id: int, status: list):
+    """
+    通过商店ID查询旗下的所有的所有货品ID
+    :param shop_id:
+    :param status:
+    :return:
+    """
+    product_ids = Product.objects.filter(shop_id=shop_id, status__in=status).values("id")
+    return product_ids
+
+
 #####################  货品分组相关  #####################
 def create_product_group(shop_id: int, product_group_info: dict):
     """
@@ -312,9 +325,7 @@ def delete_product_group_by_id_and_shop_id(product_group: ProductGroup, group_id
     # 获取默认分组
     default_product_group = get_default_product_by_shop_id(shop_id)
     # 修改货品所属分组为默认分组
-    for pl in product_list:
-        pl.group_id = default_product_group.id
-        pl.save()
+    product_list.update(group_id=default_product_group.id)
     product_group.delete()
     return True, ""
 
@@ -357,14 +368,19 @@ def list_product_group_with_product_count(shop_id: int, status: list):
     :param status:
     :return:
     """
+    # 查询分组信息
+    product_group_list = list_product_group_by_shop_id(shop_id)
     # 查询货品数量
-    product_group_list_with_count = (
+    product_count_list = (
         ProductGroup.objects.filter(shop_id=shop_id, product__status__in=status).
         order_by('sort').
-        annotate(product_count=Count("product")).
+        annotate(count=Count("product")).
         all()
     )
-    return product_group_list_with_count
+    product_count_dict = {product_group.id: product_group.count for product_group in product_count_list}
+    for pg in product_group_list:
+        pg.products_count = product_count_dict.get(pg.id, 0)
+    return product_group_list
 
 
 def list_product_group_with_product_list(

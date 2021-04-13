@@ -1,3 +1,5 @@
+from config.services import get_some_config_by_shop_id, get_share_setup_by_id
+from delivery.services import get_delivery_config_by_shop_id
 from staff.services import list_staff_by_user_id
 from user.services import get_user_by_id, list_user_by_ids
 from customer.services import get_customer_by_user_id_and_shop_id
@@ -21,6 +23,24 @@ def get_customer_by_user_id_and_shop_id_interface(user_id: int, shop_id: int) ->
     """
     customer = get_customer_by_user_id_and_shop_id(user_id, shop_id)
     return customer
+
+
+def get_some_config_by_shop_id_interface(shop_id: int):
+    """获取店铺的一些配置"""
+    some_config = get_some_config_by_shop_id(shop_id)
+    return some_config
+
+
+def get_delivery_config_by_shop_id_interface(shop_id: int):
+    """获取一个店铺的配送设置"""
+    delivery_config = get_delivery_config_by_shop_id(shop_id)
+    return delivery_config
+
+
+def get_share_setup_by_id_interface(shop_id: int):
+    """获取一个店铺的分享设置"""
+    share_setup = get_share_setup_by_id(shop_id)
+    return share_setup
 
 
 def list_staff_by_user_id_interface(user_id: int, roles: int) -> list:

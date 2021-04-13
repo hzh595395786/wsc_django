@@ -15,6 +15,12 @@ class AdminCustomerSerializer(UserSerializer):
     consume_count = serializers.IntegerField(label="客户消费次数")
     point = FuncField(lambda value: round(float(value), 2), label="客户积分")
     remark = serializers.CharField(label="客户备注")
+    realname = serializers.CharField(required=False, label="用户真实姓名")
+    nickname = serializers.CharField(required=False, label="微信昵称")
+    sex = serializers.IntegerField(required=False, label="性别")
+    phone = serializers.CharField(required=False, label="手机号")
+    birthday = serializers.DateField(required=False, format=DateFormat.DAY, default="", label="用户生日")
+    head_image_url = serializers.CharField(required=False, label="头像")
 
 
 class AdminCustomerPointsSerializer(serializers.Serializer):

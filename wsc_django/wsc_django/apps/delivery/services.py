@@ -1,6 +1,9 @@
+import copy
 import datetime
 import decimal
 
+from logs.constant import OrderLogType
+from logs.services import create_order_log
 from order.constant import OrderDeliveryMethod
 from shop.models import Shop
 from delivery.models import DeliveryConfig, PickPeriodConfigLine, Delivery
@@ -32,6 +35,87 @@ def create_pick_period_line(
     )
     period_line.save()
     return period_line
+
+
+def create_pick_period_lines(
+    delivery_config: DeliveryConfig, pick_period_lines: list
+):
+    """
+    批量创建自提时间段
+    :param delivery_config:
+    :param pick_period_lines: [
+                {"from_time":'xx', "to_time":'xx'},
+                {"from_time":'xx', "to_time":'xx'},
+            ]
+    :return:
+    """
+    period_line_list = []
+    for pick_period_line in pick_period_lines:
+        period_line = PickPeriodConfigLine(
+            delivery_config=delivery_config,
+            from_time=pick_period_line["from_time"],
+            to_time=pick_period_line["to_time"]
+        )
+        period_line_list.append(period_line)
+    PickPeriodConfigLine.objects.bulk_create(period_line_list)
+
+
+def create_order_delivery(delivery_info: dict):
+    """
+    创建一个订单配送记录
+    :param delivery_info:
+    :return:
+    """
+    delivery = Delivery.objects.create(**delivery_info)
+    delivery.save()
+    return delivery
+
+
+def update_delivery_config(shop_id: int, args: dict, user_id: int = 0):
+    """
+    更新配送设置
+    :param shop_id:
+    :param args:
+    :param user_id:
+    :return:
+    """
+    success, delivery_config = get_delivery_config_by_shop_id(shop_id)
+    if not success:
+        return False, delivery_config
+    old_delivery_config = copy.deepcopy(delivery_config)
+    if args.get("pick_periods"):
+        # 删除原有的所有时间
+        delivery_config.pick_periods.delete()
+        # 添加新的配送时间
+        create_pick_period_lines(
+            delivery_config, args["pick_periods"]
+        )
+    # 更新配送设置主表字段
+    for k, v in args.items():
+        setattr(delivery_config, k, v)
+    # 店铺至少开启一种配送方式
+    if not delivery_config.home_on and not delivery_config.pick_on:
+        return False, "店铺至少需要开启一种配送方式"
+    # 创建操作记录,user_id为0时为点击配送/自提按钮,无需记录操作日志
+    if user_id:
+        for k, v in args.items():
+            operate_type = getattr(OrderLogType, k.upper(), None)
+            if operate_type is None:
+                continue
+            old_value = round(float(getattr(old_delivery_config, k)), 2)
+            new_value = round(float(v), 2)
+            if old_value != new_value:
+                log_info = {
+                    "shop_id": shop_id,
+                    "operator_id": user_id,
+                    "order_num": "0",
+                    "order_id": "0",
+                    "operate_type": operate_type,
+                    "operate_content": "{}|{}".format(old_value, new_value),
+                }
+                create_order_log(log_info)
+    delivery_config.save()
+    return success, ""
 
 
 def get_delivery_config_by_shop_id(shop_id: int):
@@ -119,3 +203,13 @@ def _convert_delivery_period(args: dict):
         )
 
     return True, delivery_period
+
+
+def get_order_delivery_by_delivery_id(delivery_id: int):
+    """
+    获取一个订单的配送记录,仅商家送货有
+    :param delivery_id:
+    :return:
+    """
+    delivery = Delivery.objects.filter(id=delivery_id).first()
+    return delivery

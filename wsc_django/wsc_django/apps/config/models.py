@@ -94,3 +94,35 @@ class MsgNotify(TimeBaseModel):
         db_table = "msgnotfiy"
         verbose_name = "消息通知"
         verbose_name_plural = verbose_name
+
+
+class ShareSetup(TimeBaseModel):
+    """分享设置模型类"""
+
+    id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE).primary_key
+    custom_title_name = models.CharField(
+        max_length=64, null=False, default="", verbose_name="自定义分享标题名称"
+    )
+    custom_share_description = models.CharField(
+        max_length=64, null=False, default="", verbose_name="自定义分享描述"
+    )
+
+    class Meta:
+        db_table = "share_setup"
+        verbose_name = "分享设置"
+        verbose_name_plural = verbose_name
+
+
+class SomeConfig(TimeBaseModel):
+    """一些杂乱的配置项,和店铺绑定的"""
+
+    id = models.OneToOneField(Shop, primary_key=True, null=False, on_delete=models.CASCADE).primary_key
+    show_off_product = models.BooleanField(null=False, default=True, verbose_name="货品板块显示已下架货品")
+    new_order_voice = models.BooleanField(null=False, default=True, verbose_name="新订单语音提醒")
+    weixin_jsapi = models.BooleanField(null=False, default=False, verbose_name="是否开启微信支付")
+    on_delivery = models.BooleanField(null=False, default=True, verbose_name="是否开启货到付款")
+
+    class Meta:
+        db_table = "some_config"
+        verbose_name = "一些杂乱的配置项"
+        verbose_name_plural = verbose_name

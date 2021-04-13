@@ -7,7 +7,7 @@ from user.serializers import UserSerializer
 from wsc_django.utils.constant import DateFormat
 
 
-class StaffSerializer(UserSerializer):
+class StaffSerializer(serializers.Serializer):
     """员工序列化器类"""
 
     staff_id = serializers.IntegerField(read_only=True, source="id", label="员工id")
@@ -18,6 +18,12 @@ class StaffSerializer(UserSerializer):
     remark = serializers.CharField(required=False, min_length=0, max_length=20, allow_null=True, label="备注")
     shop_id = serializers.IntegerField(write_only=True, required=False, label="商铺id，仅创建时使用")
     user_id = serializers.IntegerField(write_only=True, required=False, label="用户id，仅创建时使用")
+    realname = serializers.CharField(read_only=True, label="用户真实姓名")
+    nickname = serializers.CharField(read_only=True, label="微信昵称")
+    sex = serializers.IntegerField(read_only=True, label="性别")
+    phone = serializers.CharField(read_only=True, label="手机号")
+    birthday = serializers.DateField(read_only=True, format=DateFormat.DAY, default="", label="用户生日")
+    head_image_url = serializers.CharField(read_only=True, label="头像")
 
     def create(self, validated_data):
         staff = create_staff(validated_data)
@@ -37,12 +43,12 @@ class StaffSerializer(UserSerializer):
 class StaffApplySerializer(serializers.Serializer):
     """员工申请序列化器类"""
 
-    id = serializers.IntegerField(read_only=True, label="员工申请id")
+    staff_apply_id = serializers.IntegerField(source="id", read_only=True, label="员工申请id")
     status = serializers.IntegerField(read_only=True, label="申请状态")
     create_time = serializers.DateTimeField(
         read_only=True, required=False, source="create_at", format=DateFormat.TIME, label="员工申请创建时间"
     )
-    user_info = UserSerializer(read_only=True, label="用户信息")
+    user_info = UserSerializer(source="user", read_only=True, label="用户信息")
 
     def update(self, instance, validated_data):
         instance.status = StaffApplyStatus.PASS

@@ -42,16 +42,15 @@ class StaffApplyView(MallBaseView):
         user = self.current_user
         self._set_current_shop(request, shop_code)
         current_shop = self.current_shop
-        staff_apply_query = get_staff_apply_by_user_id_and_shop_id(user.id, current_shop.id)
+        staff_apply = get_staff_apply_by_user_id_and_shop_id(user.id, current_shop.id)
         # 没有审核记录的是超管或者第一次申请的人
-        if not staff_apply_query:
+        if not staff_apply:
             # 超管
             if current_shop.super_admin_id == user.id:
-                staff_apply_query = self.get_tmp_class(StaffApplyStatus.PASS)
+                staff_apply = self.get_tmp_class(StaffApplyStatus.PASS)
             else:
-                staff_apply_query = self.get_tmp_class(StaffApplyStatus.UNAPPlY)
-        staff_apply_query.user_info = user
-        serializer = StaffApplySerializer(staff_apply_query)
+                staff_apply = self.get_tmp_class(StaffApplyStatus.UNAPPlY)
+        serializer = StaffApplySerializer(staff_apply)
         return self.send_success(data=serializer.data, shop_info={"shop_name":current_shop.shop_name})
 
     @use_args(
@@ -162,7 +161,7 @@ class AdminStaffApplyView(AdminBaseView):
                 return self.send_error(
                     error_message=staff_serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
                 )
-            staff_serializer.save()
+            staff = staff_serializer.save()
         elif staff.status == StaffStatus.NORMAL:
             return self.send_fail(error_text="已经为该店铺的员工")
         else:
@@ -171,7 +170,7 @@ class AdminStaffApplyView(AdminBaseView):
             for k, v in staff_info.items():
                 setattr(staff, k, v)
             staff.save()
-        return self.send_success()
+        return self.send_success(staff_id=staff.id)
 
 
 class AdminStaffView(AdminBaseView):
@@ -202,10 +201,10 @@ class AdminStaffView(AdminBaseView):
                 required=True, validate=[validate.Range(1)], comment="员工ID"
             )
         },
-        location="query"
+        location="json"
     )
-    def delete(self, request):
-        staff_id = request.query_params.get("staff_id", 0)
+    def delete(self, request, args):
+        staff_id = args.get("staff_id")
         shop_id = self.current_shop.id
         staff = get_staff_by_id_and_shop_id(staff_id, shop_id)
         if not staff:
@@ -274,11 +273,21 @@ class AdminStaffListView(AdminBaseView):
     @use_args(
         {
             "keyword": fields.String(required=False, comment="搜索关键字(姓名或手机号)"),
+            "page": fields.Integer(required=False, missing=1, comment="页码"),
+            "page_size": fields.Integer(
+                required=False, missing=20, validate=[validate.Range(1)], comment="每页条数"
+            ),
         },
         location="query"
     )
     def get(self, request, args):
+        page = args.get("page")
         shop_id = self.current_shop.id
         staff_list = list_staff_by_shop_id(shop_id, args.get("keyword"))
-        staff_list = self._get_paginated_data(staff_list, StaffSerializer)
+        # page为-1时,不分页
+        if page > 0:
+            staff_list = self._get_paginated_data(staff_list, StaffSerializer)
+        else:
+            # 适配前端参数要求
+            staff_list = {'results': StaffSerializer(staff_list, many=True).data}
         return self.send_success(data_list=staff_list)

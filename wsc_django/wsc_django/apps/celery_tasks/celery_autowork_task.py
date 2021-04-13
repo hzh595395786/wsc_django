@@ -6,6 +6,8 @@ from celery import Celery
 # from sentry_sdk.integrations.celery import CeleryIntegration
 
 from config.services import get_receipt_by_shop_id
+from groupon.constant import GrouponStatus
+from groupon.services import get_shop_groupon_by_id
 from order.constant import OrderPayType, OrderRefundType, OrderType
 from order.services import (
     cancel_order,
@@ -13,6 +15,8 @@ from order.services import (
     # refund_order,
     get_order_by_shop_id_and_id,
 )
+from promotion.events import GrouponEvent
+from promotion.services import publish_product_promotion
 from wsc_django.apps.settings import CELERY_BROKER
 # from .celery_tplmsg_task import (
 #     GrouponOrderFailAttendTplMsg,
@@ -27,8 +31,8 @@ app.conf.CELERYD_TASK_SOFT_TIME_LIMIT = 600  # 任务超时时间
 app.conf.CELERY_DISABLE_RATE_LIMITS = True  # 任务频率限制开关
 app.conf.CELERY_ROUTES = {
     "auto_cancel_order": {"queue": "wsc_auto_work"},
-    # "auto_publish_groupon": {"queue": "wsc_auto_work"},
-    # "auto_expire_groupon": {"queue": "wsc_auto_work"},
+    "auto_publish_groupon": {"queue": "wsc_auto_work"},
+    "auto_expire_groupon": {"queue": "wsc_auto_work"},
     # "auto_validate_groupon_attend": {"queue": "wsc_auto_work"},
     # "auto_fail_groupon_attend": {"queue": "wsc_auto_work"},
 }
@@ -51,74 +55,73 @@ def auto_cancel_order(self, shop_id, order_id):
     #     )
 
 
-# @app.task(bind=True, name="auto_publish_groupon")
-# def auto_publish_groupon(self, shop_id, groupon_id):
-#     """ 自动发布拼团事件 """
-#     now = datetime.datetime.now()
-#     success, groupon = get_shop_groupon_by_id(session, shop_id, groupon_id)
-#     if not success:
-#         print("Groupon [id={}] publish failed: {}".format(groupon_id, groupon))
-#         return
-#     if groupon.status != GrouponStatus.ON:
-#         print(
-#             "Groupon [id={}] publish failed: 状态错误{}".format(
-#                 groupon_id, groupon.status
-#             )
-#         )
-#         return
-#     if groupon.to_datetime < now:
-#         print(
-#             "Groupon [id={}] publish failed: 已过期{}".format(
-#                 groupon_id, groupon.to_datetime
-#             )
-#         )
-#         return
-#     content = {
-#         "id": groupon.id,
-#         "price": round(float(groupon.price), 2),
-#         "to_datetime": groupon.to_datetime.strftime("%Y-%m-%d %H:%M:%S"),
-#         "groupon_type": groupon.groupon_type,
-#         "success_size": groupon.success_size,
-#         "quantity_limit": groupon.quantity_limit,
-#         "succeeded_count": groupon.succeeded_count,
-#         "success_limit": groupon.success_limit,
-#         "succeeded_quantity": int(round(groupon.succeeded_quantity)),
-#     }
-#     event = GrouponEvent(content)
-#     ttl = (groupon.to_datetime - now).total_seconds()
-#     publish_product_promotion(
-#         groupon.shop_id, groupon.product_id, event, ttl=int(ttl)
-#     )
-#     print("Groupon [id={}] publish success".format(groupon.id))
+@app.task(bind=True, name="auto_publish_groupon")
+def auto_publish_groupon(self, shop_id, groupon_id):
+    """ 自动发布拼团事件 """
+    now = datetime.datetime.now()
+    success, groupon = get_shop_groupon_by_id(shop_id, groupon_id)
+    if not success:
+        print("Groupon [id={}] publish failed: {}".format(groupon_id, groupon))
+        return
+    if groupon.status != GrouponStatus.ON:
+        print(
+            "Groupon [id={}] publish failed: 状态错误{}".format(
+                groupon_id, groupon.status
+            )
+        )
+        return
+    if groupon.to_datetime < now:
+        print(
+            "Groupon [id={}] publish failed: 已过期{}".format(
+                groupon_id, groupon.to_datetime
+            )
+        )
+        return
+    content = {
+        "id": groupon.id,
+        "price": round(float(groupon.price), 2),
+        "to_datetime": groupon.to_datetime.strftime("%Y-%m-%d %H:%M:%S"),
+        "groupon_type": groupon.groupon_type,
+        "success_size": groupon.success_size,
+        "quantity_limit": groupon.quantity_limit,
+        "succeeded_count": groupon.succeeded_count,
+        "success_limit": groupon.success_limit,
+        "succeeded_quantity": int(round(groupon.succeeded_quantity)),
+    }
+    event = GrouponEvent(content)
+    ttl = (groupon.to_datetime - now).total_seconds()
+    publish_product_promotion(
+        groupon.shop_id, groupon.product_id, event, ttl=int(ttl)
+    )
+    print("Groupon [id={}] publish success".format(groupon.id))
 
 
-# @app.task(bind=True, name="auto_expire_groupon")
-# def auto_expire_groupon(self, shop_id, groupon_id):
-#     """ 拼团自动过期 """
-#     success, groupon = get_shop_groupon_by_id(session, shop_id, groupon_id)
-#     if not success:
-#         print("Groupon [id={}] expire failed: {}".format(groupon_id, groupon))
-#         return
-#     if groupon.status == GrouponStatus.EXPIRED:
-#         print(
-#             "Groupon [id={}] expire failed: 状态错误{}".format(
-#                 groupon_id, groupon.status
-#             )
-#         )
-#         return
-#     # 任务提前10s过期算作提前
-#     if groupon.to_datetime - datetime.datetime.now() > datetime.timedelta(
-#         seconds=10
-#     ):
-#         print(
-#             "Groupon [id={}] expire failed: 未到过期时间{}".format(
-#                 groupon_id, datetime.datetime.now()
-#             )
-#         )
-#         return
-#     groupon.set_expired()
-#     session.commit()
-#     print("Groupon [id={}] expire failed".format(groupon_id))
+@app.task(bind=True, name="auto_expire_groupon")
+def auto_expire_groupon(self, shop_id, groupon_id):
+    """ 拼团自动过期 """
+    success, groupon = get_shop_groupon_by_id(shop_id, groupon_id)
+    if not success:
+        print("Groupon [id={}] expire failed: {}".format(groupon_id, groupon))
+        return
+    if groupon.status == GrouponStatus.EXPIRED:
+        print(
+            "Groupon [id={}] expire failed: 状态错误{}".format(
+                groupon_id, groupon.status
+            )
+        )
+        return
+    # 任务提前10s过期算作提前
+    if groupon.to_datetime - datetime.datetime.now() > datetime.timedelta(
+        seconds=10
+    ):
+        print(
+            "Groupon [id={}] expire failed: 未到过期时间{}".format(
+                groupon_id, datetime.datetime.now()
+            )
+        )
+        return
+    groupon.set_expired()
+    print("Groupon [id={}] expire failed".format(groupon_id))
 
 
 # @app.task(bind=True, name="auto_validate_groupon_attend")

@@ -1,11 +1,16 @@
+from django.http import QueryDict
 from rest_framework import status
 from webargs.djangoparser import use_args
 from webargs import fields, validate
 
 from customer.constant import MineAddressDefault
+from order.constant import OrderType, OrderPayType, OrderDeliveryMethod, OrderStatus
+from order.serializers import AdminOrdersSerializer
 from user.constant import Sex
+from wsc_django.utils.arguments import StrToList
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import AdminBaseView, MallBaseView
+from customer.interface import list_customer_orders_interface
 from customer.serializers import (
     AdminCustomerSerializer,
     AdminCustomerPointsSerializer,
@@ -21,7 +26,6 @@ from customer.services import (
     list_mine_address_by_user_id_and_shop_id,
     get_mine_default_address_by_user_id_and_shop_id,
 )
-
 
 
 class AdminCustomerView(AdminBaseView):
@@ -126,6 +130,77 @@ class AdminCustomerPointsView(AdminBaseView):
         customer_point_list = list_customer_point_by_customer_id(customer.id)
         customer_point_list = self._get_paginated_data(customer_point_list, AdminCustomerPointsSerializer)
         return self.send_success(data_list=customer_point_list)
+
+
+class AdminCustomerOrdersView(AdminBaseView):
+    """后台-客户-历史订单查询"""
+    pagination_class = StandardResultsSetPagination
+
+    @AdminBaseView.permission_required(
+        [AdminBaseView.staff_permissions.ADMIN_CUSTOMER]
+    )
+    @use_args(
+        {
+            "customer_id": fields.Integer(
+                required=True, validate=[validate.Range(1)], comment="客户ID"
+            ),
+            "order_types": StrToList(
+                required=False,
+                missing=[],
+                validate=[validate.ContainsOnly([OrderType.NORMAL, OrderType.GROUPON])],
+                comment="订单类型, 1: 普通订单, 5: 拼团订单",
+            ),
+            "order_pay_types": StrToList(
+                required=False,
+                missing=[],
+                validate=[
+                    validate.ContainsOnly(
+                        [OrderPayType.WEIXIN_JSAPI, OrderPayType.ON_DELIVERY]
+                    )
+                ],
+                comment="订单支付类型, 1: 微信支付, 2: 货到付款",
+            ),
+            "order_delivery_methods": StrToList(
+                required=False,
+                missing=[],
+                validate=[
+                    validate.ContainsOnly(
+                        [
+                            OrderDeliveryMethod.HOME_DELIVERY,
+                            OrderDeliveryMethod.CUSTOMER_PICK,
+                        ]
+                    )
+                ],
+                comment="配送类型, 1: 送货上门, 2: 自提",
+            ),
+            "order_status": StrToList(
+                required=False,
+                missing=[
+                    OrderStatus.PAID,
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.FINISHED,
+                    OrderStatus.REFUNDED,
+                ],
+                validate=[
+                    validate.ContainsOnly(
+                        [
+                            OrderStatus.PAID,
+                            OrderStatus.CONFIRMED,
+                            OrderStatus.FINISHED,
+                            OrderStatus.REFUNDED,
+                        ]
+                    )
+                ],
+                comment="订单状态, 2: 未处理, 3: 处理中, 4: 已完成, 5: 已退款",
+            ),
+        },
+        location="query"
+    )
+    def get(self, request, args):
+        args["shop_id"] = self.current_shop.id
+        order_list = list_customer_orders_interface(**args)
+        order_list = self._get_paginated_data(order_list, AdminOrdersSerializer)
+        return self.send_success(data_list=order_list)
 
 
 class MallMineAddressView(MallBaseView):
@@ -259,9 +334,10 @@ class MallMineAddressView(MallBaseView):
 
     @use_args(
         {
-            "address_id": fields.Integer(
+            "id": fields.Integer(
                 required=True,
                 validate=[validate.Range(1)],
+                data_key="address_id",
                 comment="地址ID",
             )
         },

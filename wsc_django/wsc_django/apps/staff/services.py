@@ -92,6 +92,19 @@ def expire_staff_apply_by_staff(shop_id: int, user_id: int):
         sal.save()
 
 
+def get_staff_by_user_id_and_shop_id_with_user(user_id: int, shop_id: int):
+    """
+    通过shop_id, user_id获取员工以及员工的用户信息
+    :param user_id:
+    :param shop_id:
+    :return:
+    """
+    staff = Staff.objects.filter(shop_id=shop_id, user_id=user_id).first()
+    for key in USER_OUTPUT_CONSTANT:
+        setattr(staff, key, getattr(staff.user, key))
+    return staff
+
+
 def get_staff_by_user_id_and_shop_id(user_id: int, shop_id: int, filter_delete: bool = True):
     """
     通过shop_id和user_id获取员工,不带user信息
@@ -220,8 +233,18 @@ def list_staff_by_shop_id(shop_id: int, keyword: str = None):
         )
     else:
         staff_list_query = Staff.objects.filter(shop_id=shop_id, status=StaffStatus.NORMAL)
-    staff_list = staff_list_query.all()
+    staff_list = staff_list_query.order_by("id").all()
     for staff in staff_list:
         for _ in USER_OUTPUT_CONSTANT:
             setattr(staff, _, getattr(staff.user, _))
     return staff_list
+
+
+def list_staff_by_shop_id_with_user(shop_id: int):
+    """查询出一个店铺的所有员工的user信息"""
+
+    staff_user_list = []
+    staff_list = Staff.objects.filter(shop_id=shop_id).all()
+    for staff in staff_list:
+        staff_user_list.append(staff.user)
+    return staff_user_list

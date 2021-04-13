@@ -65,6 +65,29 @@ def update_customer_consume_amount_and_count_and_point_by_consume(
     )
 
 
+def update_customer_consume_amount_and_point_by_refund(
+    customer_id: int, consume_amount: decimal
+):
+    """
+    退款时,退消费总额,退积分,不退消费次数
+    :param customer_id:
+    :param consume_amount:
+    :return:
+    """
+    customer = get_customer_by_customer_id(customer_id)
+    # 积分四舍五入
+    point = round(consume_amount)
+    # # 退首单,相应的退掉首单的积分
+    # if customer.consume_count == 1:
+    #     point += decimal.Decimal(5)
+    customer.consume_amount -= consume_amount
+    customer.point -= point
+    customer.save()
+    create_customer_point(
+        customer.id, customer.point, -point, CustomerPointType.REFUND
+    )
+
+
 def get_customer_by_customer_id(customer_id: int):
     """
     通过客户ID查询客户
@@ -128,7 +151,9 @@ def list_customer_by_shop_id(
         order_by = sort_prop
         if sort == "desc":
             order_by = "-{}".format(sort_prop)
-        customer_list_query = customer_list_query.order_by(order_by)
+    else:
+        order_by = "create_date"
+    customer_list_query = customer_list_query.order_by(order_by)
     customer_list = customer_list_query.all()
     for customer in customer_list:
         for _ in USER_OUTPUT_CONSTANT:

@@ -2,12 +2,15 @@ from webargs import fields, validate
 from rest_framework import status
 from webargs.djangoparser import use_args
 
+from config.serializers import SomeConfigSerializer, ShareSetupSerializer
+from delivery.serializers import AdminDeliveryConfigSerializer
 from shop.constant import ShopStatus, ShopVerifyActive, ShopVerifyType, ShopPayActive, ShopPayChannelType
 from shop.models import Shop
 from staff.constant import StaffRole
 from staff.serializers import StaffSerializer
 from user.constant import USER_OUTPUT_CONSTANT
 from user.serializers import UserSerializer
+from wsc_django.utils.core import Baidu
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import UserBaseView, AdminBaseView, MallBaseView
 from shop.serializers import (
@@ -32,8 +35,8 @@ from shop.interface import (
     list_staff_by_user_id_interface,
     get_user_by_id_interface,
     list_user_by_ids_interface,
-    get_customer_by_user_id_and_shop_id_interface
-)
+    get_customer_by_user_id_and_shop_id_interface,
+    get_some_config_by_shop_id_interface, get_delivery_config_by_shop_id_interface, get_share_setup_by_id_interface)
 
 
 class SuperShopView(UserBaseView):
@@ -97,7 +100,6 @@ class SuperShopView(UserBaseView):
         location="json",
     )
     def post(self, request, args):
-
         user_id = args["user_id"]
         user = get_user_by_id_interface(user_id)
         serializer = ShopCreateSerializer(data=args.get("shop_data"), context={'user':user})
@@ -370,9 +372,18 @@ class AdminShopView(AdminBaseView):
         staff = self.current_staff
         for _ in USER_OUTPUT_CONSTANT:
             setattr(staff, _, getattr(user, _))
+        some_config = get_some_config_by_shop_id_interface(shop.id)
+        some_config = SomeConfigSerializer(some_config).data
+        baidu_token = Baidu.get_baidu_token()
+        some_token = {"baidu_token": baidu_token}
         shop_serializer = AdminShopSerializer(shop)
         staff_serializer = StaffSerializer(staff)
-        return self.send_success(shop_data=shop_serializer.data, staff_data=staff_serializer.data)
+        return self.send_success(
+            shop_data=shop_serializer.data,
+            staff_data=staff_serializer.data,
+            some_config=some_config,
+            some_token=some_token,
+        )
 
 
 class MallShopView(MallBaseView):
@@ -382,12 +393,21 @@ class MallShopView(MallBaseView):
         self._set_current_shop(request, shop_code)
         shop = self.current_shop
         user = self.current_user
+        _, delivery_config = get_delivery_config_by_shop_id_interface(shop.id)
+        some_config = get_some_config_by_shop_id_interface(shop.id)
+        shop_share = get_share_setup_by_id_interface(shop.id)
         shop_serializer = MallShopSerializer(shop)
         customer_serializer = UserSerializer(user)
+        shop_info = dict(shop_serializer.data)
+        delivery_config_info = AdminDeliveryConfigSerializer(delivery_config).data
+        pay_config_info = SomeConfigSerializer(some_config).data
+        shop_share_info = ShareSetupSerializer(shop_share).data
+        shop_info["delivery_config"] = delivery_config_info
+        shop_info["pay_active"] = pay_config_info
+        shop_info["shop_share"] = shop_share_info
         # 额外查询用户的积分数据
         customer = get_customer_by_user_id_and_shop_id_interface(user.id, shop.id)
         customer_info = dict(customer_serializer.data)
-        shop_info = dict(shop_serializer.data)
         customer_info["points"] = round(float(customer.point), 2) if customer else 0
         customer_info["is_new_customer"] = (
             customer.is_new_customer() if customer else True

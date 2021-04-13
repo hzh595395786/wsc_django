@@ -2,9 +2,11 @@
 import datetime
 import re
 
+import requests
 from django_redis import get_redis_connection
 from rest_framework import serializers
 
+from settings import BAIDU_APIKEY, BAIDU_SECRETKEY
 from wsc_django.utils.region_file import REGION
 
 
@@ -19,7 +21,12 @@ class FuncField(serializers.Field):
         self.func = func
 
     def to_representation(self, value):
+        """read时调用"""
         return self.func(value)
+
+    def to_internal_value(self, data):
+        """write时调用，必须重写"""
+        return data
 
 
 class FormatAddress:
@@ -116,5 +123,63 @@ class NumGenerator:
         shop_id = num[2:7]
         order_type = num[13:15]
         return (int(shop_id), order_type)
+
+
+class TimeFunc:
+    @staticmethod
+    def get_to_date_by_from_date(from_date, to_date, statistic_type):
+        """根据选择的日期，月份，年份获取起止区间
+        """
+        if statistic_type not in [1, 3, 4]:
+            raise ValueError("统计类型不受支持")
+        try:
+            if statistic_type == 1:
+                from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
+                if to_date:
+                    to_date = datetime.datetime.strptime(
+                        to_date, "%Y-%m-%d"
+                    ) + datetime.timedelta(days=1)
+                else:
+                    to_date = from_date + datetime.timedelta(days=1)
+            elif statistic_type == 3:
+                from_date = datetime.datetime.strptime(from_date, "%Y-%m")
+                to_date = datetime.datetime.strptime(to_date, "%Y-%m")
+                if to_date.month + 1 > 12:
+                    month = 1
+                    year = to_date.year + 1
+                else:
+                    year = to_date.year
+                    month = to_date.month + 1
+                to_date = datetime.datetime(year=year, month=month, day=1)
+            elif statistic_type == 4:
+                # 按年现在不进行筛选，给个默认所有的日期
+                from_date = datetime.datetime(year=2015, month=1, day=1)
+                to_date = datetime.datetime(year=2100, month=1, day=1)
+        except ValueError:
+            raise ValueError("日期格式传入错误，请检查")
+        return from_date, to_date
+
+
+class Baidu:
+    @staticmethod
+    def get_baidu_token():
+        """获取access_token，先从redis中取，取不到则重新生成"""
+        redis_conn = get_redis_connection("default")
+        access_token = redis_conn.get("wsc_baidu_token")
+        if access_token:
+            return access_token.decode("utf-8")
+
+        url = "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id={}&client_secret={}".format(
+            BAIDU_APIKEY, BAIDU_SECRETKEY
+        )
+        data = requests.get(
+            url,
+            headers={"Content-Type": "application/json; charset=UTF-8"},
+            verify=False,
+        ).json()
+        access_token = data.get("access_token", "")
+        if access_token:
+            redis_conn.setex("wsc_baidu_token", 60 * 60 * 24 * 10, access_token)
+        return access_token
 
 

@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     # 第三方应用
     'rest_framework',
     'corsheaders', # cors
-    
+    'channels', # websocket
+
     # 本地应用
     'config.apps.ConfigConfig',
     'customer.apps.CustomerConfig',
@@ -141,6 +142,13 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
+    },
+    "subscribe": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/10",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -155,7 +163,7 @@ DATABASES = {
         'HOST': '127.0.0.1',  # 数据库主机
         'PORT': 3306,  # 数据库端口
         'USER': 'wsc_django',  # 数据库用户名
-        'PASSWORD': 'wsc',  # 数据库用户密码
+        'PASSWORD': 'wsc_django',  # 数据库用户密码
         'NAME': 'wsc_django',  # 数据库名字
     }
 }
@@ -179,6 +187,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# 指定ASGI的路由地址
+ASGI_APPLICATION = 'wsc_django.routing.application'
+
+# channels websocket
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('localhost', 6379)],
+        },
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
@@ -204,6 +224,11 @@ STATIC_URL = '/static/'
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'wsc_django.utils.exceptions.wsc_exception_handler', # 异常处理
 }
+
+# redis数据库相关
+REDIS_SERVER = "localhost"
+REDIS_PORT = "6379"
+REDIS_PASSWORD = ""
 
 # jwt相关配置
 JWT_AUTH = {
@@ -239,3 +264,12 @@ CELERY_BROKER = "amqp://guest@localhost:5674//"
 
 # 前端商城域名
 WSC_HOST_NAME = ""
+
+# 七牛云相关
+QINIU_ACCESS_KEY = "Pm0tzHLClI6iHqxdkCbwlSwHWZycbQoRFQwdqEI_"
+QINIU_SECRET_KEY = "gCjIMVE_lpW7d2bjI-AdMXDKQeE1bdtKxRInBRTH"
+QINIU_BUCKET_SHOP_IMG = "shopimg"
+
+# 百度AI开放平台 10464550
+BAIDU_APIKEY = "xZLWgNDVgLRh9iwIA2Xt6yM1"
+BAIDU_SECRETKEY = "HO7m2a7eTGeM9rPfMc73REWy7KwYwSCR"

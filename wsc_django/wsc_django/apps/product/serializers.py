@@ -8,7 +8,7 @@ from wsc_django.utils.core import FuncField
 from product.services import (
     create_product,
     create_product_group,
-    create_product_picture,
+    create_product_pictures,
     update_product_storage,
     delete_product_picture_by_product_id,
 )
@@ -30,14 +30,16 @@ class ProductCreateSerializer(serializers.Serializer):
     storage = serializers.DecimalField(
         max_digits=13, decimal_places=4, required=True, min_value=0, label="货品库存"
     )
-    code = serializers.CharField(required=False, label="货品编码")
-    summary = serializers.CharField(max_length=20, min_length=0, required=False, label="货品简介")
+    code = serializers.CharField(allow_blank=True, required=False, label="货品编码")
+    summary = serializers.CharField(
+        allow_blank=True, max_length=20, min_length=0, required=False, label="货品简介"
+    )
     pictures = serializers.ListField(
         child=serializers.CharField(max_length=15, min_length=0, required=False),
         required=False,
         label="货品轮播图",
     )
-    description = serializers.CharField(required=False, label="图文描述")
+    description = serializers.CharField(required=False, allow_blank=True, label="图文描述")
     cover_image_url = serializers.CharField(required=True, label="首页图片")
     shop_id = serializers.IntegerField(read_only=True, label="商铺id")
     user_id = serializers.IntegerField(read_only=True, label="创建货品的用户id")
@@ -46,7 +48,7 @@ class ProductCreateSerializer(serializers.Serializer):
         user = self.context["self"].current_user
         shop = self.context["self"].current_shop
         storage = validated_data.pop("storage")
-        product_pictures = validated_data.pop("pictures", None)
+        product_pictures = validated_data.pop("pictures")
         validated_data["shop"] = shop
         validated_data["name_acronym"] = slug(validated_data["name"], separator="")
         with transaction.atomic():
@@ -55,10 +57,8 @@ class ProductCreateSerializer(serializers.Serializer):
             try:
                 # 添加货品
                 product = create_product(validated_data, user.id)
-                if product_pictures:
-                    # 添加货品轮播图
-                    for pp in product_pictures:
-                        create_product_picture(product.id, pp)
+                # 添加货品轮播图
+                create_product_pictures(product.id, product_pictures)
                 # 更改库存,同时生成库存更改记录
                 update_product_storage(
                     product,
@@ -89,10 +89,10 @@ class AdminProductSerializer(serializers.Serializer):
     pictures = serializers.ListField(
         required=False, allow_null=True, min_length=1, max_length=5, child=serializers.CharField(), label="货品轮播图"
     )
-    code = serializers.CharField(required=False, label="货品编码")
-    summary = serializers.CharField(required=False, min_length=0, max_length=20, label="货品简介")
+    code = serializers.CharField(required=False, allow_blank=True, label="货品编码")
+    summary = serializers.CharField(required=False, allow_blank=True, min_length=0, max_length=20, label="货品简介")
     cover_image_url = serializers.CharField(required=False, label="货品封面图")
-    description = serializers.CharField(required=False, label="货品描述")
+    description = serializers.CharField(required=False, allow_blank=True, label="货品描述")
     status = serializers.IntegerField(read_only=True, label="货品状态")
 
     def update(self, instance, validated_data):
@@ -112,8 +112,7 @@ class AdminProductSerializer(serializers.Serializer):
                 if product_pictures:
                     # 更新货品轮播图信息,先删除,再添加
                     delete_product_picture_by_product_id(instance.id)
-                    for pp in product_pictures:
-                        create_product_picture(instance.id, pp)
+                    create_product_pictures(instance.id, product_pictures)
                     # 更改库存,同时生成库存更改记录
                 change_storage = new_storage - instance.storage
                 if change_storage != 0:
@@ -158,14 +157,14 @@ class AdminProductGroupSerializer(serializers.Serializer):
 
 
 class AdminProductSaleRecordSerializer(serializers.Serializer):
-    """货品销售记录序列化器类"""
+    """后台货品销售记录序列化器类"""
 
     create_time = serializers.DateTimeField(format=DateFormat.TIME, label="创建时间")
     order_num = serializers.CharField(label="订单号")
     price_net = FuncField(lambda value: round(float(value), 2), label="单价（优惠后）")
     quantity_net = FuncField(lambda value: round(float(value), 2), label="量（优惠后）")
     amount_net = FuncField(lambda value: round(float(value), 2), label="金额（优惠后）")
-    customer_data = UserSerializer(label="客户信息")
+    customer = UserSerializer(label="客户信息")
 
 
 class MallProductSerializer(AdminProductSerializer):

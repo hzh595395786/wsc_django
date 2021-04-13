@@ -23,7 +23,7 @@ class UserSerializer(serializers.Serializer):
     realname = serializers.CharField(required=False, label="用户真实姓名")
     nickname = serializers.CharField(required=False, label="微信昵称")
     sex = serializers.IntegerField(required=False, label="性别")
-    phone = serializers.CharField(label="手机号")
+    phone = serializers.CharField(required=False, label="手机号")
     birthday = serializers.DateField(required=False, format=DateFormat.DAY, default="", label="用户生日")
     head_image_url = serializers.CharField(required=False, label="头像")
 

@@ -111,7 +111,7 @@ class MallSMSCodeView(UserBaseView):
             remote_ip = self.request.META.get("REMOTE_ADDR")
         user_id = self.current_user.id
         use_ip = "bind_phone_ip:%s:%s" % (user_id, remote_ip)
-        redis_conn =get_redis_connection("verify_codes")
+        redis_conn = get_redis_connection("verify_codes")
         if redis_conn.get(use_ip):
             return self.send_fail(error_text="一分钟只能发生一次")
         sms_code = gen_sms_code()

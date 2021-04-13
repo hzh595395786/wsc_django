@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.db import transaction
 
-from config.services import create_receipt_by_shop
+from config.services import create_receipt_by_shop, create_share_setup, create_some_config_by_shop_id, \
+    create_msg_notify_by_shop_id
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
 from shop.constant import ShopStatus
@@ -14,7 +15,6 @@ from wsc_django.utils.validators import (
     shop_verify_status_validator,
     shop_verify_type_validator,
     shop_status_validator,
-
 )
 
 
@@ -51,6 +51,12 @@ class ShopCreateSerializer(serializers.Serializer):
                 create_default_group_by_shop(shop)
                 # 将店铺创建者创建为超级管理员员工
                 create_super_admin_staff(shop, shop.super_admin)
+                # 创建店铺分享设置
+                create_share_setup(shop.id, shop.shop_name)
+                # 创建一些奇怪的设置
+                create_some_config_by_shop_id(shop.id)
+                # 创建默认消息通知配置
+                create_msg_notify_by_shop_id(shop.id)
             except Exception as e:
                 print(e)
                 # 回滚到保存点
@@ -106,9 +112,11 @@ class AdminShopSerializer(serializers.Serializer):
     shop_address = serializers.CharField(label="详细地址")
     shop_code = serializers.CharField(label="商铺编号")
     cerify_active = serializers.IntegerField(label="商铺是否认证")
+    shop_verify_type = serializers.IntegerField(label="商铺认证类型")
     pay_active = serializers.IntegerField(label="商铺是否开通支付")
     shop_verify_content = serializers.CharField(label="商铺认证内容")
-    create_user_data = UserSerializer(read_only=True, label="商铺创建人信息")
+    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="商铺创建时间")
+    create_user = UserSerializer(read_only=True, label="商铺创建人信息")
 
 
 class MallShopSerializer(serializers.Serializer):
