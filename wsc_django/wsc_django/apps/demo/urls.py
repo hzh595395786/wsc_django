@@ -7,5 +7,5 @@ from demo import views
 
 
 urlpatterns = [
-    path('demo/', views.DemoView.as_view())  # 测试接口
+    path('api/demo/', views.DemoView.as_view())  # 测试接口
 ]

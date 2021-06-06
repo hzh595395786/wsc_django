@@ -4,23 +4,26 @@ import json
 import uuid
 
 import requests
-from django.db.models import Count
 
 from config.services import get_printer_by_shop_id
 from customer.models import Customer
 from delivery.services import _convert_delivery_period, apply_promotion
+from groupon.models import GrouponAttend
+from groupon.services import get_shop_groupon_attend_by_id
 from logs.constant import OrderLogType
 from logs.services import create_order_log
-from order.constant import OrderStatus, OrderType, OrderPayType, OrderDeliveryMethod, OrderRefundType
+from order.constant import OrderStatus, OrderType, OrderPayType, OrderDeliveryMethod, OrderRefundType, \
+    MAP_EVENT_ORDER_TYPE
 from order.models import Order, OrderDetail, OrderAddress
 from payment.service import payment_query, create_order_transaction, get_order_transaction_by_order_id
 from printer.services import print_order
 from product.constant import ProductStatus
-from product.services import update_product_storage, list_product_by_ids
+from product.services import update_product_storage_and_no_record, list_product_by_ids
+from promotion.constant import PromotionType
 from settings import LCSW_HANDLE_HOST
-from shop.models import Shop
 from shop.services import get_shop_by_shop_id
 from storage.constant import ProductStorageRecordType, ProductStorageRecordOperatorType
+from storage.services import create_product_storage_records
 from user.services import get_pay_channel_by_shop_id
 from ws.services import publish_admin
 from wsc_django.utils.lcsw import LcswFunds, LcswPay
@@ -28,26 +31,150 @@ from customer.services import (
     get_customer_by_customer_id_and_shop_id,
     update_customer_consume_amount_and_point_by_refund,
     update_customer_consume_amount_and_count_and_point_by_consume,
+    get_customer_by_user_id_and_shop_id, create_customer
 )
 from order.selectors import (
     list_order_details_by_order_id,
     get_order_by_shop_id_and_id,
     get_shop_order_by_shop_id_and_id,
-    count_abnormal_order
+    count_abnormal_order,
+    get_order_by_customer_id_and_groupon_attend_id
 )
 
 
-def create_order(shop: Shop, customer: Customer, order_info: dict):
+######### 订单活动检查相关 #########
+_MAP_CHECK_PROMOTION_FUNC = {}
+
+
+def register_check_promotion(type_):
+    def register(func):
+        _MAP_CHECK_PROMOTION_FUNC[type_] = func
+        return func
+
+    return register
+
+
+@register_check_promotion(PromotionType.NORMAL)
+def _check_normal(**__):
+    """普通活动检查"""
+
+    class NormalEvent:
+        event_type = 0
+
+    return True, NormalEvent(), {}
+
+
+@register_check_promotion(PromotionType.GROUPON)
+def _check_groupon_attend(
+    shop_id: int, customer: Customer, promotion_attend_id: int, **__
+):
+    """检查拼团活动"""
+    success, groupon_attend = get_shop_groupon_attend_by_id(
+        shop_id, promotion_attend_id, for_update=True
+    )
+    if not success:
+        return False, groupon_attend, {}
+    order_attend = get_order_by_customer_id_and_groupon_attend_id(
+        customer.id, promotion_attend_id
+    )
+    if order_attend:
+        return False, "您已经参加过该团", {}
+
+    groupon_attend.event_type = 1
+
+    return True, groupon_attend, {"groupon_attend_id": groupon_attend.id}
+
+
+######### 订单详情活动检查相关 #########
+_MAP_GEN_ORDER_DETAIL_FUNC = {}
+
+
+def register_gen_order_detail_info(type_):
+    def register(func):
+        _MAP_GEN_ORDER_DETAIL_FUNC[type_] = func
+        return func
+
+    return register
+
+
+@register_gen_order_detail_info(PromotionType.NORMAL)
+def _gen_normal_order_detail_info(item: dict, **__):
+    """
+    生成普通订单的子订单信息
+    :param item: {
+                "product": product对象,
+                "quantity": quantity,
+                "price":price
+                "amount":amount
+            }
+    :param __:
+    :return:
+    """
+    product = item["product"]
+    if abs(item["price"] - product.price) > 0.01:
+        return False, "商品信息变化，请刷新"
+    order_detail_info = {
+        "product_id": product.id,
+        "quantity_gross": item["quantity"],
+        "quantity_net": item["quantity"],
+        "price_gross": item["price"],
+        "price_net": item["price"],
+        "amount_gross": item["amount"],
+        "amount_net": item["amount"],
+        "promotion_type": 0,
+    }
+    return True, order_detail_info
+
+
+@register_gen_order_detail_info(PromotionType.GROUPON)
+def _gen_groupon_order_detail_info(
+    customer: object, item: dict, promotion_attend: GrouponAttend, **__
+):
+    """
+    生成拼团订单的子订单信息
+    :param customer:
+    :param item:{
+                "product": product对象,
+                "quantity": quantity,
+                "price":price
+                "amount":amount
+            }
+    :param promotion_attend:
+    :param __:
+    :return:
+    """
+    product = item["product"]
+    if promotion_attend.groupon.product.id != product.id:
+        return False, "拼团商品不匹配，请重新下单"
+    # 拼团活动的校验
+    success, msg = promotion_attend.limit(customer, item["quantity"])
+    if not success:
+        return False, msg
+    price_net = promotion_attend.calculate()
+    if abs(item["price"] - price_net) > 0.01:
+        return False, "拼团商品信息有变化，请刷新"
+    order_detail_info = {
+        "product_id": product.id,
+        "quantity_gross": item["quantity"],
+        "quantity_net": item["quantity"],
+        "price_gross": product.price,
+        "price_net": item["price"],
+        "amount_gross": product.price * item["quantity"],
+        "amount_net": item["amount"],
+        "promotion_type": 1,
+        "promotion_attend_id": promotion_attend.id,
+    }
+    return True, order_detail_info
+
+
+######### 订单相关 #########
+def create_order(order_info: dict):
     """
     创建一个订单
-    :param shop:
-    :param customer:
     :param order_info:
     :return:
     """
-    order = Order.objects.create(
-        customer=customer, shop=shop, **order_info
-    )
+    order = Order(**order_info)
     order.save()
     return order
 
@@ -55,18 +182,26 @@ def create_order(shop: Shop, customer: Customer, order_info: dict):
 def _create_order_details(
     order: Order,
     cart_items: list,
-    customer: Customer,
+    promotion_attend: object = None,
 ):
     """
     创建订单详情
     :param order:
     :param cart_items:
-    :param customer:
+    :param promotion_attend:
     :return:
     """
     storage_record_list = []
     for item in cart_items:
-        success, order_detail_info = _gen_normal_order_detail_info(item)
+        # 验证活动,同时生成子订单数据
+        gen_order_detail_info_func = _MAP_GEN_ORDER_DETAIL_FUNC.get(
+            promotion_attend.event_type, _gen_normal_order_detail_info
+        )
+        success, order_detail_info = gen_order_detail_info_func(
+            customer=order.customer,
+            item=item,
+            promotion_attend=promotion_attend,
+        )
         if not success:
             return False, order_detail_info
         order_detail = create_order_detail(order, order_detail_info)
@@ -75,15 +210,16 @@ def _create_order_details(
         order.total_amount_gross += order_detail.amount_gross
         # 创建订单扣减库存,同时记录库存变更记录
         change_storage = -item["quantity"]
-        storage_record = update_product_storage(
+        storage_record = update_product_storage_and_no_record(
             item["product"],
-            customer.user.id,
+            order.customer.user.id,
             change_storage,
             ProductStorageRecordType.MALL_SALE,
             ProductStorageRecordOperatorType.CUSTOMER,
             order.order_num,
         )
         storage_record_list.append(storage_record)
+    storage_record_list = create_product_storage_records(storage_record_list)
     return True, storage_record_list
 
 
@@ -112,31 +248,9 @@ def create_order_detail(order: Order, order_detail_info: dict):
         "pay_type": order.pay_type,
     }
     order_detail_info.update(order_info)
-    order_detail = OrderDetail.objects.create(**order_detail_info)
+    order_detail = OrderDetail(**order_detail_info)
     order_detail.save()
     return order_detail
-
-
-def _gen_normal_order_detail_info(item: dict):
-    """
-    生成普通订单的子订单信息
-    :param item:
-    :return:
-    """
-    product = item["product"]
-    if abs(item["price"] - product.price) > 0.01:
-        return False, "商品信息变化，请刷新"
-    order_detail_info = {
-        "product_id": product.id,
-        "quantity_gross": item["quantity"],
-        "quantity_net": item["quantity"],
-        "price_gross": item["price"],
-        "price_net": item["price"],
-        "amount_gross": item["amount"],
-        "amount_net": item["amount"],
-        "promotion_type": 0,
-    }
-    return True, order_detail_info
 
 
 def _create_order_address(
@@ -149,7 +263,7 @@ def _create_order_address(
     :param delivery_method:
     :return:
     """
-    order_address = OrderAddress.objects.create(**address_info)
+    order_address = OrderAddress(**address_info)
     # 自提订单更新成店铺地址
     if delivery_method == OrderDeliveryMethod.CUSTOMER_PICK:
         shop = get_shop_by_shop_id(shop_id)
@@ -161,7 +275,7 @@ def _create_order_address(
     return order_address
 
 
-def order_data_check(shop_id: int, args: dict):
+def order_data_check(shop_id: int, user_id, args: dict):
     """
     校验订单相关的数据
     :param args:
@@ -184,6 +298,10 @@ def order_data_check(shop_id: int, args: dict):
     # 支付方式关联参数校验
     if args["pay_type"] == OrderPayType.WEIXIN_JSAPI and not args.get("wx_openid"):
         return False, "微信支付订单wx_openid必传"
+    # 检查客户，如不存在则创建客户
+    customer = get_customer_by_user_id_and_shop_id(user_id, shop_id)
+    if not customer:
+        customer = create_customer(user_id, shop_id)
     # 运费相关校验
     success, delivery_amount_gross = apply_promotion(
         shop_id, args["delivery_method"], order_amount, args["delivery_amount"]
@@ -211,6 +329,17 @@ def order_data_check(shop_id: int, args: dict):
                 "商品：「{product_name}」库存仅剩 {storage} !".format(product_name=product.name, storage=product.storage)
             )
         item["product"] = product
+    # 活动检查
+    promotion_type = args["promotion_type"]
+    assert promotion_type in _MAP_CHECK_PROMOTION_FUNC.keys()
+    check_promotion_func = _MAP_CHECK_PROMOTION_FUNC[promotion_type]
+    success, promotion_attend, promotion_attend_field= check_promotion_func(
+        shop_id=shop_id,
+        customer=customer,
+        promotion_attend_id=args["promotion_attend_id"],
+    )
+    if not success:
+        return False, promotion_attend
     order_info = {
         "delivery_method": args["delivery_method"],
         "delivery_period": delivery_period,
@@ -222,8 +351,13 @@ def order_data_check(shop_id: int, args: dict):
         "delivery_amount_net": args["delivery_amount"],
         "total_amount_gross": delivery_amount_gross,
         "total_amount_net": order_amount + args["delivery_amount"],
-        "order_type": OrderType.NORMAL,
+        "order_type": MAP_EVENT_ORDER_TYPE.get(promotion_type, OrderType.NORMAL),
+        "address": args.get("address"),
+        "customer_id": customer.id,
+        "shop_id": shop_id,
+        "promotion_attend": promotion_attend,
     }
+    order_info.update(promotion_attend_field)
     if args.get("remark"):
         order_info["remark"] = args.get("remark")
     return True, order_info
@@ -235,13 +369,9 @@ def count_paid_order(shop_id: int):
     :param shop_id:
     :return:
     """
-    result = (
-        Order.objects.filter(shop_id=shop_id, order_status=OrderStatus.PAID).
-        annotate(count=Count("id")).first()
+    count = (
+        Order.objects.filter(shop_id=shop_id, order_status=OrderStatus.PAID).count()
     )
-    count = 0
-    if result:
-        count = result.count
     return count
 
 
@@ -407,9 +537,10 @@ def set_order_status_refunded(order: Order, user_id: int, refund_type: int):
     order.refund_type = refund_type
     order_detail_list = list_order_details_by_order_id(order.id)
     order_detail_list.update(order_status=OrderStatus.REFUNDED, refund_type=refund_type)
+    storage_record_list = []
     for order_detail in order_detail_list:
         change_storage = order_detail.quantity_net
-        update_product_storage(
+        storage_record = update_product_storage_and_no_record(
             order_detail.product,
             order_detail.customer.user.id,
             change_storage,
@@ -417,6 +548,8 @@ def set_order_status_refunded(order: Order, user_id: int, refund_type: int):
             ProductStorageRecordOperatorType.CUSTOMER,
             order.order_num,
         )
+        storage_record_list.append(storage_record)
+    create_product_storage_records(storage_record_list)
     # 订单退款,客户积分同时也扣减
     update_customer_consume_amount_and_point_by_refund(
         order.customer.id, order.total_amount_net
@@ -457,7 +590,7 @@ def set_order_status_paid(order: Order, order_status: int):
 
     order.order_status = order_status
     order_detail_list = list_order_details_by_order_id(order.id)
-    order_detail_list.update(order_status=order_status)
+    order_detail_list.update(status=order_status)
     order.save()
 
 
@@ -471,9 +604,10 @@ def set_order_status_canceled(order: Order):
     order.order_status = OrderStatus.CANCELED
     order_detail_list = list_order_details_by_order_id(order.id)
     order_detail_list.update(order_status=OrderStatus.CANCELED)
+    storage_record_list = []
     for order_detail in order_detail_list:
         change_storage = order_detail.quantity_net
-        update_product_storage(
+        storage_record = update_product_storage_and_no_record(
             order_detail.product,
             customer.user.id,
             change_storage,
@@ -481,6 +615,8 @@ def set_order_status_canceled(order: Order):
             ProductStorageRecordOperatorType.CUSTOMER,
             order.order_num,
         )
+        storage_record_list.append(storage_record)
+    create_product_storage_records(storage_record_list)
     order.save()
     return True, None
 

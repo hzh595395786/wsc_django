@@ -11,7 +11,8 @@ from wsc_django.apps.settings import (
 )
 
 # 短信签名
-sms_common_sign = "【森果平台】"
+yunpian_sms_common_sign = "【志浩web开发】"
+tencent_sms_common_sign = "【志浩web开发】"
 
 
 class YunPianSms:
@@ -60,7 +61,7 @@ class YunPianSms:
 
     @classmethod
     def tpl_send_sms_with_text(
-        cls, tpl_value, mobile, sign_type=sms_common_sign, apikey=YUNPIAN_SYSTEM_APIKEY
+        cls, tpl_value, mobile, sign_type=yunpian_sms_common_sign, apikey=YUNPIAN_SYSTEM_APIKEY
     ):
         """
         模板接口发短信（文本传入）
@@ -172,14 +173,14 @@ class YunPianSms:
     @classmethod
     def send_yunpian_verify_code(cls, mobile, code, use, mode="text"):
         """发送短信验证码，模版内容：
-        【微商城助手】您的验证码是#code#。此验证码用于#use#，5分钟内有效。
+        【微商城助手】您的验证码是#code#。此验证码用于绑定手机号，5分钟内有效。
         ps:这个单独用了一个不一样的签名，现在审核模版必须要加图形验证码，狗带 2018-07-19 by yy
         """
         if mode == "text":
-            tpl_value = "您的验证码是{code}。此验证码用于{use}，5分钟内有效。".format(code=code, use=use)
+            tpl_value = "您的验证码是{code}。此验证码用于绑定手机号".format(code=code)
             return cls.tpl_send_sms_with_text(tpl_value, mobile)
         else:
-            tpl_id = 2389780
+            tpl_id = 4460930
             tpl_value = "#code#={}&#use#={}".format(code, use)
             return cls.tpl_send_sms(tpl_id, tpl_value, mobile)
 
@@ -191,7 +192,7 @@ class TencentSms:
     ssender = SmsSingleSender(TENCENT_SMS_APPID, TENCENT_SMS_APPKEY)
 
     @classmethod
-    def tpl_send_sms(cls, sms_text, mobile, smsType=0, smsSign=sms_common_sign):
+    def tpl_send_sms(cls, sms_text, mobile, smsType=0, smsSign=tencent_sms_common_sign):
         """ 单发短信接口
         :param text string 短信内容
         :param mobile string 手机号
@@ -227,7 +228,7 @@ class TencentSms:
         param: code 验证码
         param: use 验证码用途
         """
-        sms_text = "您的验证码是{code}。此验证码用于{use}，5分钟内有效。".format(code=code, use=use)
+        sms_text = "您的验证码是{code}。此验证码用于绑定手机号，5分钟内有效。".format(code=code)
         return cls.tpl_send_sms(sms_text, mobile)
 
 

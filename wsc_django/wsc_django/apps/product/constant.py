@@ -10,5 +10,5 @@ class ProductGroupDefault:
 
 
 class ProductOperationType:
-    ON = 1 # 上架
-    OFF = 2 # 下架
+    ON = 1  # 上架
+    OFF = 2  # 下架

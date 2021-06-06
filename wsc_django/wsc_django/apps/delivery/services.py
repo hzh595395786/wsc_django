@@ -9,13 +9,13 @@ from shop.models import Shop
 from delivery.models import DeliveryConfig, PickPeriodConfigLine, Delivery
 
 
-def create_delivery_config(shop: Shop):
+def create_delivery_config(shop_id: int):
     """
     创建配送设置，所有属性赋默认值
-    :param shop: 商铺对象
+    :param shop_id: 商铺id
     :return:
     """
-    delivery_config = DeliveryConfig.objects.create(id=shop)
+    delivery_config = DeliveryConfig(id=shop_id)
     delivery_config.save()
     return delivery_config
 
@@ -30,7 +30,7 @@ def create_pick_period_line(
     :param to_time:自提终止时间
     :return:
     """
-    period_line = PickPeriodConfigLine.objects.create(
+    period_line = PickPeriodConfigLine(
         delivery_config=delivery_config, from_time=from_time, to_time=to_time
     )
     period_line.save()
@@ -66,7 +66,7 @@ def create_order_delivery(delivery_info: dict):
     :param delivery_info:
     :return:
     """
-    delivery = Delivery.objects.create(**delivery_info)
+    delivery = Delivery(**delivery_info)
     delivery.save()
     return delivery
 
@@ -93,6 +93,7 @@ def update_delivery_config(shop_id: int, args: dict, user_id: int = 0):
     # 更新配送设置主表字段
     for k, v in args.items():
         setattr(delivery_config, k, v)
+    delivery_config.save()
     # 店铺至少开启一种配送方式
     if not delivery_config.home_on and not delivery_config.pick_on:
         return False, "店铺至少需要开启一种配送方式"
@@ -114,7 +115,6 @@ def update_delivery_config(shop_id: int, args: dict, user_id: int = 0):
                     "operate_content": "{}|{}".format(old_value, new_value),
                 }
                 create_order_log(log_info)
-    delivery_config.save()
     return success, ""
 
 
@@ -171,7 +171,7 @@ def apply_promotion(
         return False, "订单未到起送价"
     promotion_amount = delivery_config.calculate(delivery_method, order_amount)
     delivery_amount_gross = delivery_config.get_delivery_amount_gross(delivery_method)
-    if abs(delivery_amount_gross - promotion_amount -delivery_amount_net) > 0.01:
+    if abs(delivery_amount_gross - promotion_amount - delivery_amount_net) > 0.01:
         return False, "订单运费计算有误"
     return True, delivery_amount_gross
 

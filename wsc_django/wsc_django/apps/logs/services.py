@@ -2,7 +2,7 @@ import datetime
 from collections import defaultdict
 
 from logs.constant import OrderLogType, MAP_NO_OPERATOR_ORDER_TYPE, OperateLogModule
-from logs.models import OrderLog, OperateLogUnify, ConfigLog, PromotionLog
+from logs.models import OrderLog, OperateLogUnify, ConfigLog, PromotionLog, ProductLog, LogBaseModel, StaffLog
 
 
 def get_all_module_dict():
@@ -13,7 +13,7 @@ def get_all_module_dict():
     return module_dict
 
 
-def  _create_operate_log_unify(log: OrderLog):
+def  _create_operate_log_unify(log: LogBaseModel):
     """
     在操作记录统一表中创建一条操作记录
     :param log:
@@ -26,14 +26,14 @@ def  _create_operate_log_unify(log: OrderLog):
         "operate_module": log.operate_module,
         "log_id": log.id,
     }
-    operate_log = OperateLogUnify.objects.create(**log_info)
+    operate_log = OperateLogUnify(**log_info)
     operate_log.save()
 
 
 def create_order_log(log_info: dict):
     """
     创建一个订单操作记录
-    :param log_info:
+    :param log_info: {
         "order_id": 1,
         "oder_num": "xxxx",
         "shop_id": 1,
@@ -43,7 +43,7 @@ def create_order_log(log_info: dict):
     }
     :return:
     """
-    order_log = OrderLog.objects.create(**log_info)
+    order_log = OrderLog(**log_info)
     order_log.save()
     _create_operate_log_unify(order_log)
     return order_log
@@ -60,7 +60,7 @@ def create_config_log(log_info: dict):
         }
     :return:
     """
-    config_log = ConfigLog.objects.create(**log_info)
+    config_log = ConfigLog(**log_info)
     config_log.save()
     _create_operate_log_unify(config_log)
     return config_log
@@ -77,10 +77,45 @@ def create_promotion_log(log_info: dict):
         }
     :return:
     """
-    promotion_log = PromotionLog.objects.create(**log_info)
+    promotion_log = PromotionLog(**log_info)
     promotion_log.save()
     _create_operate_log_unify(promotion_log)
     return promotion_log
+
+
+def create_product_log(log_info: dict):
+    """
+    创建一条货品板块操作记录
+    :param log_info: {
+            "shop_id": shop_id,
+            "operator_id": user_id,
+            "operate_type": ProductLogType.ADD_PRODUCT,
+            "operate_content": ""
+        }
+    :return:
+    """
+    product_log = ProductLog(**log_info)
+    product_log.save()
+    _create_operate_log_unify(product_log)
+    return product_log
+
+
+def create_staff_log(log_info: dict):
+    """
+    创建一条员工操作日志
+    :param log_info: {
+            "shop_id": shop_id,
+            "operator_id": user_id,
+            "operate_type": StaffLogType.ADD_STAFF,
+            "staff_id": staff_id,
+            "operate_content": ""
+        }
+    :return:
+    """
+    staff_log = StaffLog(**log_info)
+    staff_log.save()
+    _create_operate_log_unify(staff_log)
+    return staff_log
 
 
 def get_order_log_time_by_order_num(order_num: str):

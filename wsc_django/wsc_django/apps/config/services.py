@@ -3,13 +3,13 @@ from config.models import Receipt, Printer, ShareSetup, SomeConfig, MsgNotify
 from shop.models import Shop
 
 
-def create_receipt_by_shop(shop: Shop):
+def create_receipt_by_shop(shop_id: int):
     """
     为店铺创建一个默认小票
-    :param shop: 商铺对象
+    :param shop_id: 商铺id
     :return:
     """
-    receipt = Receipt.objects.create(id=shop)
+    receipt = Receipt(id=shop_id)
     receipt.save()
     return receipt
 
@@ -23,7 +23,7 @@ def create_share_setup(shop_id: int, shop_name: str):
     """
     custom_title_name = ShareSetUpTemplate.CUSTOM_TITLE_NAME.format(shop_name=shop_name)
     custom_share_description = ShareSetUpTemplate.CUSTOM_SHARE_DESCRIPTION
-    share_setup = ShareSetup.objects.create(
+    share_setup = ShareSetup(
         id=shop_id,
         custom_title_name=custom_title_name,
         custom_share_description=custom_share_description,
@@ -39,7 +39,7 @@ def create_some_config_by_shop_id(shop_id: int):
     :return:
     """
     config_info = {"id": shop_id}
-    some_config = SomeConfig.objects.create(**config_info)
+    some_config = SomeConfig(**config_info)
     some_config.save()
     return some_config
 
@@ -59,7 +59,7 @@ def create_printer_by_shop_id(shop_id: int, printer_info: dict):
     printer = get_printer_by_shop_id(shop_id)
     if not printer:
         printer_info["shop_id"] = shop_id
-        printer = Printer.objects.create(**printer_info)
+        printer = Printer(**printer_info)
         printer.save()
     else:
         for k, v in printer_info.items():
@@ -73,7 +73,7 @@ def create_receipt_by_shop_id(shop_id: int):
     :param shop_id:
     :return:
     """
-    receipt = Receipt.objects.create(id=shop_id)
+    receipt = Receipt(id=shop_id)
     receipt.save()
     return receipt
 
@@ -84,7 +84,7 @@ def create_msg_notify_by_shop_id(shop_id: int):
     :param shop_id:
     :return:
     """
-    msg_notify = MsgNotify.objects.create(id=shop_id)
+    msg_notify = MsgNotify(id=shop_id)
     msg_notify.save()
     return msg_notify
 

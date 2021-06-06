@@ -23,6 +23,8 @@ urlpatterns = [
     path(r'', include('customer.urls')),
     path(r'', include('dashboard.urls')),
     path(r'', include('delivery.urls')),
+    path(r'', include('demo.urls')),
+    path(r'', include('groupon.urls')),
     path(r'', include('logs.urls')),
     path(r'', include('order.urls')),
     path(r'', include('payment.urls')),
@@ -35,7 +37,6 @@ urlpatterns = [
     path(r'', include('storage.urls')),
     path(r'', include('user.urls')),
     path(r'', include('ws.urls')),
-    path(r'', include('demo.urls')),
 ]
 
 # 自带的API web

@@ -1,5 +1,6 @@
 from config.services import get_some_config_by_shop_id, get_share_setup_by_id
 from delivery.services import get_delivery_config_by_shop_id
+from product.services import count_product_by_shop_ids
 from staff.services import list_staff_by_user_id
 from user.services import get_user_by_id, list_user_by_ids
 from customer.services import get_customer_by_user_id_and_shop_id
@@ -41,6 +42,11 @@ def get_share_setup_by_id_interface(shop_id: int):
     """获取一个店铺的分享设置"""
     share_setup = get_share_setup_by_id(shop_id)
     return share_setup
+
+
+def count_product_by_shop_ids_interface(shop_ids: list):
+    map_shop_product_count = count_product_by_shop_ids(shop_ids)
+    return map_shop_product_count
 
 
 def list_staff_by_user_id_interface(user_id: int, roles: int) -> list:

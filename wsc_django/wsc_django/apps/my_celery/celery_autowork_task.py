@@ -1,11 +1,13 @@
 """ 自动取消(订单，拼团)异步任务 """
 import datetime
+import os
 
 # import sentry_sdk
+from django.utils.timezone import make_aware
 from celery import Celery
 # from sentry_sdk.integrations.celery import CeleryIntegration
 
-from config.services import get_receipt_by_shop_id
+# from config.services import get_receipt_by_shop_id
 from groupon.constant import GrouponStatus
 from groupon.services import get_shop_groupon_by_id
 from order.constant import OrderPayType, OrderRefundType, OrderType
@@ -23,6 +25,9 @@ from wsc_django.apps.settings import CELERY_BROKER
 #     GrouponOrderRefundFailTplMsg,
 #     GrouponOrderSuccessAttendTplMsg,
 # )
+
+if not os.getenv('DJANGO_SETTINGS_MODULE'):
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'apps.settings'
 
 app = Celery("wsc_auto_work", broker=CELERY_BROKER, backend="")
 app.conf.CELERY_TIMEZONE = "Asia/Shanghai"  # 时区
@@ -58,7 +63,7 @@ def auto_cancel_order(self, shop_id, order_id):
 @app.task(bind=True, name="auto_publish_groupon")
 def auto_publish_groupon(self, shop_id, groupon_id):
     """ 自动发布拼团事件 """
-    now = datetime.datetime.now()
+    now = make_aware(datetime.datetime.now())
     success, groupon = get_shop_groupon_by_id(shop_id, groupon_id)
     if not success:
         print("Groupon [id={}] publish failed: {}".format(groupon_id, groupon))
@@ -111,9 +116,9 @@ def auto_expire_groupon(self, shop_id, groupon_id):
         )
         return
     # 任务提前10s过期算作提前
-    if groupon.to_datetime - datetime.datetime.now() > datetime.timedelta(
+    if groupon.to_datetime - make_aware(datetime.datetime.now()) > make_aware(datetime.timedelta(
         seconds=10
-    ):
+    )):
         print(
             "Groupon [id={}] expire failed: 未到过期时间{}".format(
                 groupon_id, datetime.datetime.now()

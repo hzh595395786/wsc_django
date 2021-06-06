@@ -17,7 +17,7 @@ def create_product_browse_record(info: dict):
     }
     :return:
     """
-    record = ProductBrowseRecord.objects.filter(**info)
+    record = ProductBrowseRecord(**info)
     record.save()
 
 

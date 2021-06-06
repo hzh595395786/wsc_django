@@ -1,8 +1,15 @@
 from django.db import models
 
-from logs.constant import OperateLogModule, ORDER_LOG_TYPE, CONFIG_LOG_TYPE, PROMOTION_LOG_TYPE
 from user.models import User
 from wsc_django.utils.models import TimeBaseModel
+from logs.constant import (
+    OperateLogModule,
+    ORDER_LOG_TYPE,
+    CONFIG_LOG_TYPE,
+    PROMOTION_LOG_TYPE,
+    PRODUCT_LOG_TYPE,
+    STAFF_LOG_TYPE)
+
 
 
 class OperateLogUnify(TimeBaseModel):
@@ -26,17 +33,15 @@ class OperateLogUnify(TimeBaseModel):
         return {
             OperateLogModule.CONFIG: ConfigLog,
             OperateLogModule.ORDER: OrderLog,
-            # OperateLogModule.STAFF: StaffLog,
-            # OperateLogModule.PRODUCT: ProductLog,
-            # OperateLogModule.PROMOTION: PromotionLog,
+            OperateLogModule.STAFF: StaffLog,
+            OperateLogModule.PRODUCT: ProductLog,
+            OperateLogModule.PROMOTION: PromotionLog,
         }.get(module_id)
 
 
-class OrderLog(TimeBaseModel):
-    """订单日志模型类"""
+class LogBaseModel(TimeBaseModel):
+    """日志基类"""
 
-    order_num = models.CharField(max_length=20, null=False, verbose_name="订单号")
-    order_id = models.IntegerField(null=False, verbose_name="订单id")
     shop_id = models.IntegerField(null=False, verbose_name="商铺id")
     operate_time = models.DateTimeField(auto_now_add=True, null=False, verbose_name="操作时间")
     operator = models.ForeignKey(
@@ -44,6 +49,26 @@ class OrderLog(TimeBaseModel):
     )
     operate_type = models.SmallIntegerField(null=False, verbose_name="操作类型")
     operate_content = models.CharField(max_length=512, default="", verbose_name="操作内容")
+
+    class Meta:
+        abstract = True  # 说明是抽象模型类, 用于继承使用，数据库迁移时不会创建该表
+
+    @property
+    def operate_module(self):
+        """子类实现"""
+        raise NotImplementedError
+
+    @property
+    def operate_type_text(self):
+        """子类实现"""
+        raise NotImplementedError
+
+
+class OrderLog(LogBaseModel):
+    """订单日志模型类"""
+
+    order_num = models.CharField(max_length=20, null=False, verbose_name="订单号")
+    order_id = models.IntegerField(null=False, verbose_name="订单id")
 
     class Meta:
         db_table = "order_log"
@@ -59,16 +84,8 @@ class OrderLog(TimeBaseModel):
         return ORDER_LOG_TYPE.get(self.operate_type)
 
 
-class ConfigLog(TimeBaseModel):
+class ConfigLog(LogBaseModel):
     """设置模块操作日志模型类"""
-
-    shop_id = models.IntegerField(null=False, verbose_name="商铺id")
-    operate_time = models.DateTimeField(auto_now_add=True, null=False, verbose_name="操作时间")
-    operator = models.ForeignKey(
-        User, null=False, on_delete=models.CASCADE, db_constraint=False, verbose_name="操作人"
-    )
-    operate_type = models.SmallIntegerField(null=False, verbose_name="操作类型")
-    operate_content = models.CharField(max_length=512, default="", verbose_name="操作内容")
 
     class Meta:
         db_table = "config_log"
@@ -84,16 +101,8 @@ class ConfigLog(TimeBaseModel):
         return CONFIG_LOG_TYPE.get(self.operate_type)
 
 
-class PromotionLog(TimeBaseModel):
+class PromotionLog(LogBaseModel):
     """玩法日志模型类"""
-
-    shop_id = models.IntegerField(null=False, verbose_name="商铺id")
-    operate_time = models.DateTimeField(auto_now_add=True, null=False, verbose_name="操作时间")
-    operator = models.ForeignKey(
-        User, null=False, on_delete=models.CASCADE, db_constraint=False, verbose_name="操作人"
-    )
-    operate_type = models.SmallIntegerField(null=False, verbose_name="操作类型")
-    operate_content = models.CharField(max_length=512, default="", verbose_name="操作内容")
 
     class Meta:
         db_table = "promotion_log"
@@ -107,3 +116,39 @@ class PromotionLog(TimeBaseModel):
     @property
     def operate_type_text(self):
         return PROMOTION_LOG_TYPE.get(self.operate_type)
+
+
+class ProductLog(LogBaseModel):
+    """货品日志模型类"""
+
+    class Meta:
+        db_table = "product_log"
+        verbose_name = "货品日志"
+        verbose_name_plural = verbose_name
+
+    @property
+    def operate_module(self):
+        return OperateLogModule.PRODUCT
+
+    @property
+    def operate_type_text(self):
+        return PRODUCT_LOG_TYPE.get(self.operate_type)
+
+
+class StaffLog(LogBaseModel):
+    """员工日志模型类"""
+
+    staff_id = models.IntegerField(null=False, verbose_name="被操作的员工ID")
+
+    class Meta:
+        db_table = "staff_log"
+        verbose_name = "员工日志"
+        verbose_name_plural = verbose_name
+
+    @property
+    def operate_module(self):
+        return OperateLogModule.STAFF
+
+    @property
+    def operate_type_text(self):
+        return STAFF_LOG_TYPE.get(self.operate_type)

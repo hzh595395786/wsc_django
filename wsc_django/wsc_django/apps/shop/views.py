@@ -4,15 +4,15 @@ from webargs.djangoparser import use_args
 
 from config.serializers import SomeConfigSerializer, ShareSetupSerializer
 from delivery.serializers import AdminDeliveryConfigSerializer
+from settings import AUTH_COOKIE_DOMAIN, AUTH_COOKIE_EXPIRE
 from shop.constant import ShopStatus, ShopVerifyActive, ShopVerifyType, ShopPayActive, ShopPayChannelType
-from shop.models import Shop
 from staff.constant import StaffRole
 from staff.serializers import StaffSerializer
 from user.constant import USER_OUTPUT_CONSTANT
 from user.serializers import UserSerializer
 from wsc_django.utils.core import Baidu
 from wsc_django.utils.pagination import StandardResultsSetPagination
-from wsc_django.utils.views import UserBaseView, AdminBaseView, MallBaseView
+from wsc_django.utils.views import UserBaseView, AdminBaseView, MallBaseView, SuperBaseView
 from shop.serializers import (
     ShopCreateSerializer,
     ShopPayChannelSerializer,
@@ -29,80 +29,75 @@ from shop.services import (
     list_shop_reject_reason,
     list_shop_by_shop_status,
     list_shop_creator_history_realname,
-    get_shop_product_species_count_by_shop_ids,
 )
 from shop.interface import (
     list_staff_by_user_id_interface,
     get_user_by_id_interface,
     list_user_by_ids_interface,
     get_customer_by_user_id_and_shop_id_interface,
-    get_some_config_by_shop_id_interface, get_delivery_config_by_shop_id_interface, get_share_setup_by_id_interface)
+    get_some_config_by_shop_id_interface, get_delivery_config_by_shop_id_interface, get_share_setup_by_id_interface,
+    count_product_by_shop_ids_interface)
 
 
-class SuperShopView(UserBaseView):
+class SuperShopView(SuperBaseView):
     """总后台-商铺-商铺创建&商铺详情"""
 
     @use_args(
         {
-            "user_id": fields.String(required=True, validate=validate.Range(1), comment="用户id"),
-            "shop_data": fields.Nested(
-                {
-                    "shop_name": fields.String(
-                        required=True, validate=[validate.Length(0, 128)], comment="店铺名"
-                    ),
-                    "shop_img": fields.String(
-                        required=True,
-                        validate=[validate.Length(0, 300)],
-                        comment="店铺logo",
-                    ),
-                    "shop_province": fields.Integer(required=True, comment="省份编码"),
-                    "shop_city": fields.Integer(required=True, comment="城市编码"),
-                    "shop_county": fields.Integer(required=True, comment="区份编码"),
-                    "shop_address": fields.String(
-                        required=True,
-                        validate=[validate.Length(0, 100)],
-                        comment="详细地址",
-                    ),
-                    "description": fields.String(
-                        required=True, validate=[validate.Length(0, 200)], comment="描述"
-                    ),
-                    "inviter_phone": fields.String(
-                        required=True,
-                        validate=[validate.Length(0, 32)],
-                        comment="推荐人手机号",
-                    ),
-                    "longitude": fields.Decimal(
-                        required=False,
-                        data_key="lng",
-                        allow_none=True,
-                        validate=[validate.Range(-180, 180)],
-                        comment="经度",
-                    ),
-                    "latitude": fields.Decimal(
-                        required=False,
-                        data_key="lat",
-                        allow_none=True,
-                        validate=[validate.Range(-90, 90)],
-                        comment="纬度",
-                    ),
-                    "realname": fields.String(
-                        required=False,
-                        allow_none=True,
-                        validate=[validate.Length(0, 32)],
-                        comment="历史真实姓名",
-                    ),
-                },
+            "shop_name": fields.String(
+                required=True, validate=[validate.Length(0, 128)], comment="店铺名"
+            ),
+            "shop_img": fields.String(
                 required=True,
-                comment="店铺信息",
-                unknown=True,
+                validate=[validate.Length(0, 300)],
+                comment="店铺logo",
+            ),
+            "shop_province": fields.Integer(required=True, comment="省份编码"),
+            "shop_city": fields.Integer(required=True, comment="城市编码"),
+            "shop_county": fields.Integer(required=True, comment="区份编码"),
+            "shop_address": fields.String(
+                required=True,
+                validate=[validate.Length(0, 100)],
+                comment="详细地址",
+            ),
+            "description": fields.String(
+                required=True, validate=[validate.Length(0, 200)], comment="描述"
+            ),
+            "inviter_phone": fields.String(
+                required=False,
+                validate=[validate.Length(0, 32)],
+                comment="推荐人手机号",
+            ),
+            "longitude": fields.Decimal(
+                required=False,
+                data_key="lng",
+                allow_none=True,
+                validate=[validate.Range(-180, 180)],
+                comment="经度",
+            ),
+            "latitude": fields.Decimal(
+                required=False,
+                data_key="lat",
+                allow_none=True,
+                validate=[validate.Range(-90, 90)],
+                comment="纬度",
+            ),
+            "realname": fields.String(
+                required=False,
+                allow_none=True,
+                validate=[validate.Length(0, 32)],
+                comment="历史真实姓名",
             ),
         },
         location="json",
     )
     def post(self, request, args):
-        user_id = args["user_id"]
-        user = get_user_by_id_interface(user_id)
-        serializer = ShopCreateSerializer(data=args.get("shop_data"), context={'user':user})
+        user = self._get_current_user(request)
+        if not user:
+            return self.send_error(
+                status_code=status.HTTP_401_UNAUTHORIZED, error_message={"error_text": "用户未登录"}
+            )
+        serializer = ShopCreateSerializer(data=args, context={'user':user})
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
@@ -112,27 +107,36 @@ class SuperShopView(UserBaseView):
 
     @use_args(
         {
-            "shop_id": fields.Integer(required=True, comment="森果通行证ID"),
+            "shop_id": fields.Integer(required=True, comment="商铺id"),
         },
         location="query"
     )
     def get(self, request, args):
+        user = self._get_current_user(request)
+        if not user:
+            return self.send_error(
+                status_code=status.HTTP_401_UNAUTHORIZED, error_message={"error_text": "用户未登录"}
+            )
         shop_id = args.get("shop_id")
         shop = get_shop_by_shop_id(shop_id)
         if not shop:
             return self.send_fail(error_text="店铺不存在")
-        shop = Shop.objects.get(id=shop_id)
+        shop = get_shop_by_shop_id(shop_id)
         super_admin_data = get_user_by_id_interface(shop.super_admin.id)
         shop.super_admin_data = super_admin_data
         serializer = SuperShopSerializer(shop)
         return self.send_success(data=serializer.data)
 
 
-class SuperShopListView(UserBaseView):
+class SuperShopListView(SuperBaseView):
     """总后台-商铺-商铺列表"""
 
     def get(self, request):
-        user = self.current_user
+        user = self._get_current_user(request)
+        if not user:
+            return self.send_error(
+                status_code=status.HTTP_401_UNAUTHORIZED, error_message={"error_text": "用户未登录"}
+            )
         # 根据用户信息查找到对应的员工及所属店铺信息
         staff_list = list_staff_by_user_id_interface(user.id, roles=StaffRole.SHOP_ADMIN)
         if not staff_list:
@@ -141,13 +145,52 @@ class SuperShopListView(UserBaseView):
         shop_ids = [sl.shop_id for sl in staff_list]
         shop_list = list_shop_by_shop_ids(shop_ids)
         # 查找所有店铺的商品数量
-        shop_id_2_product_count = get_shop_product_species_count_by_shop_ids(shop_ids)
+        shop_id_2_product_count = count_product_by_shop_ids_interface(shop_ids)
         # 添加额外属性
         for sl in shop_list:
             sl.product_species_count = shop_id_2_product_count.get(sl.id, 0)
             sl.is_super_admin = 1 if sl.super_admin_id == user.id else 0
         serializer = SuperShopListSerializer(shop_list, many=True)
         return self.send_success(data_list=serializer.data)
+
+
+class SuperShopChoiceView(SuperBaseView):
+    """总后台-商铺-商铺选择"""
+
+    @use_args(
+        {
+            "shop_id": fields.Integer(required=True, comment="商铺id"),
+        },
+        location="json"
+    )
+    def post(self, request, args):
+        # 还是检验一下是否登录
+        user = self._get_current_user(request)
+        if not user:
+            return self.send_error(
+                status_code=status.HTTP_401_UNAUTHORIZED, error_message={"error_text": "用户未登录"}
+            )
+        shop_id = args.get("shop_id")
+        shop = get_shop_by_shop_id(shop_id)
+        # 设置cookies时使用
+        request.shop = shop
+        if not shop:
+            return self.send_fail(error_text="商铺id有误或商铺不存在")
+        return self.send_success()
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        """设置店铺id的cookies"""
+        response = super().finalize_response(request, response, *args, **kwargs)
+        # shop_id无误，设置cookies
+        if response.data.get("success"):
+            response.delete_cookie("wsc_shop_id")
+            response.set_signed_cookie(
+                "wsc_shop_id",
+                request.shop.id,
+                salt="hzh_wsc_shop_id",
+                max_age=AUTH_COOKIE_EXPIRE,
+            )
+        return response
 
 
 class SuperShopStatusView(UserBaseView):
@@ -380,7 +423,7 @@ class AdminShopView(AdminBaseView):
         staff_serializer = StaffSerializer(staff)
         return self.send_success(
             shop_data=shop_serializer.data,
-            staff_data=staff_serializer.data,
+            user_data=staff_serializer.data,
             some_config=some_config,
             some_token=some_token,
         )

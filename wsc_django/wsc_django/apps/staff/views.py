@@ -3,7 +3,9 @@ from rest_framework.response import Response
 from webargs import fields, validate
 from webargs.djangoparser import use_args
 
+from logs.constant import StaffLogType
 from staff.constant import StaffApplyStatus, StaffRole, StaffStatus
+from staff.interface import create_staff_log_interface
 from staff.serializers import (
     StaffSerializer,
     StaffApplyCreateSerializer,
@@ -170,6 +172,14 @@ class AdminStaffApplyView(AdminBaseView):
             for k, v in staff_info.items():
                 setattr(staff, k, v)
             staff.save()
+        # 创建操作日志
+        log_info = {
+            "shop_id": shop_id,
+            "operator_id": self.current_user.id,
+            "operate_type": StaffLogType.ADD_STAFF,
+            "staff_id": staff.id,
+        }
+        create_staff_log_interface(log_info)
         return self.send_success(staff_id=staff.id)
 
 
@@ -216,6 +226,14 @@ class AdminStaffView(AdminBaseView):
         # 假删除
         staff.status = StaffStatus.DELETED
         staff.save()
+        # 创建操作日志
+        log_info = {
+            "shop_id": shop_id,
+            "operator_id": self.current_user.id,
+            "operate_type": StaffLogType.DELETE_STAFF,
+            "staff_id": staff.id,
+        }
+        create_staff_log_interface(log_info)
         return self.send_success()
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_STAFF])
@@ -260,7 +278,9 @@ class AdminStaffView(AdminBaseView):
                 return self.send_fail(error_text="超管信息仅自己可以编辑")
         serializer = StaffSerializer(staff, data=args)
         if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save()
         return self.send_success()
 

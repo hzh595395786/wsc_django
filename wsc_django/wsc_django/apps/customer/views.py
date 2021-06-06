@@ -324,7 +324,7 @@ class MallMineAddressView(MallBaseView):
         mine_address = get_mine_address_by_id(address_id, user.id, shop.id)
         if not mine_address:
             return self.send_fail(error_text="地址不存在")
-        serializer = MallMineAddressSerializer(mine_address, data=args)
+        serializer = MallMineAddressSerializer(mine_address, data=args, context={"self": self})
         if not serializer.is_valid():
             return self.send_error(
                 error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST

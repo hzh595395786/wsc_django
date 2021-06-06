@@ -8,6 +8,10 @@ from rest_framework import exceptions
 class WSCIsLoginAuthenticate(BaseAuthentication):
     """微商城是否登录验证"""
 
+    def authenticate_header(self, request):
+        """不设置验证头就会返回状态码403"""
+        return "wsc_login_auth"
+
     def authenticate(self, request):
         if not request.current_user:
             raise exceptions.AuthenticationFailed('用户未登录')

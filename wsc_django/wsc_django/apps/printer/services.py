@@ -4,8 +4,11 @@ import time
 
 import requests
 import jinja2
+from django.utils.timezone import make_aware
 
 from config.services import get_receipt_by_shop_id, get_printer_by_shop_id
+from logs.constant import OrderLogType
+from logs.services import create_order_log
 from order.models import Order
 from shop.services import get_shop_by_shop_id
 
@@ -90,7 +93,7 @@ def print_order(order: Order, user_id: int = 0):
     template = jinja2.Template(ORDER_TPL_58)
     body = template.render(
         order=order,
-        print_time=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        print_time=make_aware(datetime.datetime.now()).strftime("%Y-%m-%d %H:%M:%S"),
         shop=shop,
         receipt_config=receipt_config,
     )
@@ -117,4 +120,12 @@ def print_order(order: Order, user_id: int = 0):
         "sign": sign,
     }
     success, msg = printer.send_request(data, receipt_config.copies)
+    if success and user_id >= 0:
+        log_info = {
+            "order_num": order.order_num,
+            "shop_id": order.shop.id,
+            "operator_id": user_id,
+            "operate_type": OrderLogType.PRINT,
+        }
+        create_order_log(log_info)
     return success, msg

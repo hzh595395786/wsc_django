@@ -44,7 +44,7 @@ def create_staff(staff_info: dict):
     }
     :return:
     """
-    staff = Staff.objects.create(**staff_info)
+    staff = Staff(**staff_info)
     staff.save()
     return staff
 
@@ -62,7 +62,7 @@ def create_super_admin_staff(shop: Shop, user: User):
         if not k.startswith("__"):
             permissions |= v
 
-    staff = Staff.objects.create(
+    staff = Staff(
         shop=shop,
         user=user,
         roles=StaffRole.SHOP_SUPER_ADMIN,
@@ -74,7 +74,7 @@ def create_super_admin_staff(shop: Shop, user: User):
 
 def create_staff_apply(staff_apply_info: dict):
     """创建一条员工申请信息"""
-    staff = StaffApply.objects.create(**staff_apply_info)
+    staff = StaffApply(**staff_apply_info)
     staff.save()
     return staff
 

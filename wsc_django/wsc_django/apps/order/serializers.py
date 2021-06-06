@@ -2,8 +2,8 @@ from django.db import transaction
 from rest_framework import serializers
 
 from customer.serializers import AdminCustomerSerializer
-from customer.services import get_customer_by_user_id_and_shop_id, create_customer
 from delivery.serializers import AdminDeliverySerializer
+from groupon.serializers import GrouponAttendBasicSerializer
 from order.services import create_order, _create_order_details, _create_order_address
 from user.serializers import UserSerializer
 from wsc_django.utils.constant import DateFormat
@@ -37,13 +37,13 @@ class AdminOrderDetailSerializer(serializers.Serializer):
 class AdminOrderSerializer(serializers.Serializer):
     """后台订单序列化器类"""
 
-    id = serializers.IntegerField(label="订单id")
+    id = serializers.IntegerField(required=False, label="订单id")
     delivery_method = serializers.IntegerField(
         required=True, validators=[delivery_method_validator], label="配送方式：1：送货上门，2：客户自提"
     )
     delivery_period = serializers.CharField(required=True, label="自提时间段（仅自提必传），举例：今天 12:00~13:00")
     order_num = serializers.CharField(required=True, label="订单号")
-    create_time = serializers.DateTimeField(format=DateFormat.TIME, label="下单时间")
+    create_time = serializers.DateTimeField(read_only=True, format=DateFormat.TIME, label="下单时间")
     pay_type = serializers.IntegerField(
         required=True, validators=[order_pay_type_validator], label="支付方式：1：微信支付，2：货到付款"
     )
@@ -100,30 +100,28 @@ class AdminOrdersSerializer(serializers.Serializer):
     order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
 
 
-class MallOrderCreateSerializer(serializers.Serializer):
+class MallOrderCreateSerializer(AdminOrderSerializer):
     """商城端订单创建序列化器类"""
 
-    order_info = AdminOrderSerializer(label="订单内容")
+    shop_id = serializers.IntegerField(write_only=True, label="商铺id")
+    customer_id = serializers.IntegerField(write_only=True, label="客户id")
+    groupon_attend_id = serializers.IntegerField(required=False, write_only=True, label="拼团参与id")
 
     def create(self, validated_data):
-        user = self.context["self"].current_user
-        shop = self.context["self"].current_shop
-        order_info = validated_data.get("order_info")
-        address_info = order_info.pop("address")
+        shop_id = validated_data["shop_id"]
+        address_info = validated_data.pop("address")
         cart_items = self.context["cart_items"]
+        promotion_attend = self.context["promotion_attend"]
         with transaction.atomic():
             # 创建一个保存点
             save_id = transaction.savepoint()
             try:
-                # 检查并创建客户
-                customer = get_customer_by_user_id_and_shop_id(user.id, shop.id)
-                if not customer:
-                    customer = create_customer(user.id, shop.id)
                 # 创建订单
-                order = create_order(shop, customer, order_info)
-                order.set_num(NumGenerator.generate(shop.id, order.order_type))
+                order = create_order(validated_data)
+                order.set_num(NumGenerator.generate(shop_id, order.order_type))
+                order.save()
                 # 创建订单详情
-                success, storage_records = _create_order_details(order, cart_items, customer)
+                success, storage_records = _create_order_details(order, cart_items, promotion_attend)
                 if not success:
                     raise serializers.ValidationError(storage_records)
                 for storage_record in storage_records:
@@ -131,7 +129,7 @@ class MallOrderCreateSerializer(serializers.Serializer):
                     storage_record.save()
                 # 创建订单地址
                 address_info["order_id"] = order.id
-                _create_order_address(address_info, shop.id, order_info["delivery_method"])
+                _create_order_address(address_info, shop_id, validated_data["delivery_method"])
             except Exception as e:
                 print(e)
                 # 回滚到保存点
@@ -148,6 +146,7 @@ class MallOrderSerializer(AdminOrderSerializer):
     amount_net = FuncField(lambda value: round(float(value), 2), label="货品总额")
     delivery_amount_net = FuncField(lambda value: round(float(value), 2), label="配送费/服务费")
     total_amount_net = FuncField(lambda value: round(float(value), 2), label="订单总额")
+    groupon_attend = GrouponAttendBasicSerializer(required=False, label="拼团参与信息")
 
 
 class MallOrdersSerializer(serializers.Serializer):
@@ -161,6 +160,7 @@ class MallOrdersSerializer(serializers.Serializer):
     delivery_type = serializers.IntegerField(required=False, label="订单配送类型:员工/快递")
     total_amount_gross = serializers.DecimalField(max_digits=13, decimal_places=4, label="订单金额（优惠前）")
     order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
+    groupon_attend = GrouponAttendBasicSerializer(required=False, label="拼团参与信息")
 
 
 class OrderLogSerializer(serializers.Serializer):

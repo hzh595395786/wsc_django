@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from customer.constant import CUSTOMER_POINT_TYPE
-from customer.services import create_mine_address
+from customer.services import create_mine_address, check_default_address
 from wsc_django.utils.constant import DateFormat
 from wsc_django.utils.core import FuncField, FormatAddress
 from user.serializers import UserSerializer
@@ -44,8 +44,8 @@ class MallMineAddressSerializer(serializers.Serializer):
     county = serializers.IntegerField(label="区编号")
     address = serializers.CharField(label="详细地址")
     default = serializers.IntegerField(label="是否为默认地址")
-    longitude = serializers.FloatField(label="经度")
-    latitude = serializers.FloatField(label="纬度")
+    longitude = serializers.FloatField(required=False, label="经度")
+    latitude = serializers.FloatField(required=False, label="纬度")
 
     def validate(self, attrs):
         """验证省市区编号是否合法"""
@@ -60,10 +60,16 @@ class MallMineAddressSerializer(serializers.Serializer):
     def create(self, validated_data):
         user = self.context["self"].current_user
         shop = self.context["self"].current_shop
+        if 'default' in validated_data.keys() and validated_data['default']:
+            check_default_address(user.id, shop.id)
         mine_address = create_mine_address(validated_data, user.id, shop.id)
         return mine_address
 
     def update(self, instance, validated_data):
+        user = self.context["self"].current_user
+        shop = self.context["self"].current_shop
+        if 'default' in validated_data.keys() and validated_data['default']:
+            check_default_address(user.id, shop.id)
         for k, v in validated_data.items():
             setattr(instance, k, v)
         instance.save()

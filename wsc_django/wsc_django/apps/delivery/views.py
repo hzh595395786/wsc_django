@@ -5,7 +5,7 @@ from webargs.djangoparser import use_args
 
 from delivery.serializers import AdminDeliveryConfigSerializer
 from delivery.services import get_delivery_config_by_shop_id, update_delivery_config
-from wsc_django.utils.views import AdminBaseView
+from wsc_django.utils.views import AdminBaseView, MallBaseView
 
 
 class AdminDeliveryConfigView(AdminBaseView):
@@ -35,11 +35,14 @@ class AdminDeliveryConfigHomeView(AdminBaseView):
         location="json"
     )
     def put(self, request, args):
+        import time
+        t1 = time.time()
         success, msg = update_delivery_config(
             self.current_shop.id, args, self.current_user.id
         )
         if not success:
             return self.send_fail(error_text=msg)
+        print(time.time()-t1)
         return self.send_success()
 
 

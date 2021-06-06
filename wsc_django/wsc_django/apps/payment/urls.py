@@ -7,7 +7,7 @@ from payment import views
 
 
 urlpatterns = [
-    re_path(r'^mall/(?P<shop_code>\w+)/payment/openid/$', views.MallPaymentOpenIdView.as_view()),  # 获取支付的openid
-    re_path(r'^mall/(?P<shop_code>\w+)/openid/lcsw/$', views.MallOpenidLcswView.as_view()),  # 利楚openid接口
-    path('payment/lcsw/callback/order/', views.LcswPaymentCallbackView.as_view()),  # 利楚商务回调
+    re_path(r'^api/mall/(?P<shop_code>\w+)/payment/openid/$', views.MallPaymentOpenIdView.as_view()),  # 获取支付的openid
+    re_path(r'^api/mall/(?P<shop_code>\w+)/openid/lcsw/$', views.MallOpenidLcswView.as_view()),  # 利楚openid接口
+    path('api/payment/lcsw/callback/order/', views.LcswPaymentCallbackView.as_view()),  # 利楚商务回调
 ]

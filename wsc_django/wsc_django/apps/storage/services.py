@@ -17,9 +17,20 @@ def create_product_storage_record(record_info: dict):
     }
     :return:
     """
-    record = ProductStorageRecord.objects.create(**record_info)
+    record = ProductStorageRecord(**record_info)
     record.save()
     return record
+
+
+def create_product_storage_records(storage_record_list: list):
+    """
+    创建多条库存变更记录
+    :param storage_record_list: [{},{}]
+    :return: storage_record_list:[库存记录对象]
+    """
+    record_list = [ProductStorageRecord(**storage_record) for storage_record in storage_record_list]
+    storage_record_list = ProductStorageRecord.objects.bulk_create(record_list)
+    return storage_record_list
 
 
 def list_product_storage_record_by_product_id(

@@ -10,14 +10,32 @@ from customer.models import Customer, CustomerPoint, MineAddress
 from user.constant import USER_OUTPUT_CONSTANT
 
 
-def create_customer(user_id: int, shop_id: int):
+def create_customer(
+    user_id: int,
+    shop_id: int,
+    consume_amount: float = 0,
+    consume_count: int = 0,
+    point: float = 0,
+    remark: str = "",
+):
     """
     创建客户
     :param user_id:
     :param shop_id:
+    :param consume_amount:
+    :param consume_count:
+    :param point:
+    :param remark:
     :return:
     """
-    customer = Customer.objects.create(shop_id=shop_id, user_id=user_id)
+    customer = Customer(
+        shop_id=shop_id,
+        user_id=user_id,
+        consume_amount=consume_amount,
+        consume_count=consume_count,
+        point=point,
+        remark=remark,
+    )
     customer.save()
     return customer
 
@@ -236,6 +254,19 @@ def delete_mine_address_by_id(address_id: int, user_id: int, shop_id: int):
     mine_address.status = MineAddressStatus.DELETE
     mine_address.save()
     return True, ""
+
+
+def check_default_address(user_id: int, shop_id: int):
+    """
+    若创建或修改地址为默认地址，且用户已设置默认地址，则将修改之前的默认地址
+    :param user_id:
+    :param shop_id:
+    :return:
+    """
+    default_address = get_mine_default_address_by_user_id_and_shop_id(user_id, shop_id)
+    if default_address:
+        default_address.default = 0
+        default_address.save()
 
 
 def get_mine_address_by_id(address_id: int, user_id: int, shop_id: int):

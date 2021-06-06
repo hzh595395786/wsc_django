@@ -7,19 +7,6 @@ from celery import Celery
 from django_redis import get_redis_connection
 from wechatpy.client import WeChatClient
 
-# 为celery使用django配置文件进行设置
-import os
-import django
-if not os.getenv('DJANGO_SETTINGS_MODULE'):
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
-    import pymysql
-
-    pymysql.version_info = (1, 4, 13, "final", 0)
-    pymysql.install_as_MySQLdb()
-
-    django.setup()
-
-
 from user.services import list_openid_by_user_ids_and_appid
 from order.selectors import get_order_detail_by_id_only_msg_notify
 from wsc_django.utils.constant import DateFormat

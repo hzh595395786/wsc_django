@@ -6,7 +6,13 @@ from webargs import fields, validate
 
 from logs.constant import OrderLogType
 from logs.interface import list_operator_by_shop_id_with_user_interface
-from logs.serializers import OrderLogSerializer, OperatorSerializer, ConfigSerializer
+from logs.serializers import (
+    OrderLogSerializer,
+    OperatorSerializer,
+    ConfigLogSerializer,
+    ProductLogSerializer,
+    PromotionLogSerializer,
+)
 from wsc_django.utils.arguments import StrToList
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import AdminBaseView
@@ -100,7 +106,17 @@ class AdminLogsView(AdminBaseView):
 
     def format_config_data(self, log_list_query):
         """封装设置日志数据"""
-        log_list = ConfigSerializer(log_list_query, many=True).data
+        log_list = ConfigLogSerializer(log_list_query, many=True).data
+        return log_list
+
+    def format_product_data(self, log_list_query):
+        """封装货品日志数据"""
+        log_list = ProductLogSerializer(log_list_query, many=True).data
+        return log_list
+
+    def format_promotion_data(self, log_list_query):
+        """封装货品日志数据"""
+        log_list = PromotionLogSerializer(log_list_query, many=True).data
         return log_list
 
 

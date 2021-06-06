@@ -10,6 +10,7 @@ from logs.constant import OrderLogType
 from order.constant import OrderDeliveryMethod, OrderPayType, OrderType, OrderStatus, OrderRefundType
 from order.services import order_data_check, set_order_paid, cancel_order, count_paid_order, \
     set_order_status_confirmed_finish, refund_order
+from promotion.constant import PromotionType
 from wsc_django.utils.arguments import StrToList
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import MallBaseView, AdminBaseView
@@ -36,13 +37,26 @@ from order.interface import (
     get_product_by_id_interface,
     jsapi_params_interface,
     auto_cancel_order_interface,
-    order_commit_tplmsg_interface,
+    # order_commit_tplmsg_interface,
     list_customer_ids_by_user_id_interface,
     get_customer_by_user_id_and_shop_id_interface,
     list_order_log_by_shop_id_and_order_num_interface,
     get_order_delivery_by_delivery_id_interface,
     print_order_interface, create_order_delivery_interface, get_msg_notify_by_shop_id_interface,
-    order_delivery_tplmsg_interface, order_finish_tplmsg_interface, order_refund_tplmsg_interface)
+    order_delivery_tplmsg_interface, order_finish_tplmsg_interface, order_refund_tplmsg_interface,
+    auto_validate_groupon_attend_interface, get_product_promotion_interface, get_groupon_by_id_interface,
+    count_groupon_attend_by_groupon_id_and_customer_id_interface)
+
+
+_MAP_VALIDATE_PRODUCT = {}
+
+
+def register_order_product_verify(key):
+    def register(func):
+        _MAP_VALIDATE_PRODUCT[key] = func
+        return func
+
+    return register
 
 
 class AdminOrdersView(AdminBaseView):
@@ -524,22 +538,25 @@ class MallOrderView(MallBaseView):
             ),
             "wx_openid": fields.String(comment="微信支付openid"),
             "remark": fields.String(validate=validate.Length(0, 30), comment="订单备注"),
+            "groupon_attend_id": fields.Integer(comment="拼团活动参与id"),
         },
         location="json",
     )
     def post(self, request, args, shop_code):
         self._set_current_shop(request, shop_code)
         shop_id = self.current_shop.id
+        user_id = self.current_user.id
+        promotion_attend_id = args.pop("groupon_attend_id", 0)
+        args["promotion_attend_id"] = promotion_attend_id
+        args["promotion_type"] = 1 if promotion_attend_id else 0
         # 订单数据校验
-        success, order_info = order_data_check(shop_id, args)
+        success, order_info = order_data_check(shop_id, user_id, args)
         if not success:
             return self.send_fail(error_text=order_info)
-        order_info["address"] = args.get("address")
-        data = {
-            "order_info": order_info,
-        }
+        promotion_attend = order_info.pop("promotion_attend")
         serializer = MallOrderCreateSerializer(
-            data=data, context={"self": self, "cart_items": args.get("cart_items")}
+            data=order_info,
+            context={"promotion_attend": promotion_attend, "cart_items": args.get("cart_items")}
         )
         if not serializer.is_valid():
             return self.send_error(
@@ -561,6 +578,9 @@ class MallOrderView(MallBaseView):
                 # 测试省略
                 pass
                 # order_commit_tplmsg_interface(order.id)
+            auto_validate_groupon_attend_interface(
+                order.shop_id, order.groupon_attend
+            )
             return self.send_success(order_id=order.id)
 
     @use_args(
@@ -618,6 +638,13 @@ class MallProductVerifyView(MallBaseView):
             "product_id": fields.Integer(
                 required=True, validate=[validate.Range(1)], comment="货品ID"
             ),
+            "promotion": fields.Integer(
+                required=True,
+                validate=[
+                    validate.OneOf([PromotionType.NORMAL, PromotionType.GROUPON])
+                ],
+                comment="货品所处的活动, 0:没活动,1:拼团",
+            ),
         },
         location="json",
     )
@@ -630,7 +657,44 @@ class MallProductVerifyView(MallBaseView):
         )
         if not product or product.status != ProductStatus.ON:
             return self.send_fail(error_text="商品已下架, 看看别的商品吧")
+        # 验证活动
+        promotion = args.get("promotion")
+        validate_func = _MAP_VALIDATE_PRODUCT.get(promotion)
+        success, error_text = validate_func(self, product)
+        if not success:
+            return self.send_fail(error_text=error_text)
         return self.send_success()
+
+    @register_order_product_verify(0)
+    def validate_normal_product(self, product):
+        """验证普通活动"""
+        return True, None
+
+    @register_order_product_verify(1)
+    def validate_groupon_product(self, product):
+        """验证拼团商品"""
+        event = get_product_promotion_interface(self.current_shop.id, product.id)
+        if not event or event._event_type != "1":
+            return False, "活动已结束, 看看其他商品吧"
+        customer = get_customer_by_user_id_and_shop_id_interface(
+            self.current_shop.id, self.current_user.id
+        )
+        if customer:
+            groupon_id = event.content.get("id")
+            groupon = get_groupon_by_id_interface(
+                self.current_shop.id, groupon_id
+            )
+            total_attend_count = count_groupon_attend_by_groupon_id_and_customer_id_interface(
+                groupon_id, customer.id
+            )
+            if groupon.attend_limit and total_attend_count >= groupon.attend_limit:
+                return (
+                    False,
+                    "最多参加{attend_limit}次, 您已达到上限".format(
+                        attend_limit=groupon.attend_limit
+                    ),
+                )
+        return True, None
 
 
 class MallOrdersView(MallBaseView):
@@ -672,6 +736,10 @@ class MallOrderCancellationView(MallBaseView):
             return self.send_fail(error_text="订单状态已改变")
         success, msg = cancel_order(order.shop_id, order.id)
         if not success:
+            if order.order_type == OrderType.GROUPON:
+                auto_validate_groupon_attend_interface(
+                    order.shop_id, order.groupon_attend
+                )
             return self.send_fail(error_obj=msg)
         return self.send_success()
 

@@ -4,6 +4,7 @@ from django.db import models
 
 from customer.models import Customer
 from delivery.models import Delivery
+from groupon.models import GrouponAttend
 from product.models import Product
 from shop.models import Shop
 from order.constant import (
@@ -23,6 +24,7 @@ class Order(TimeBaseModel):
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="订单对应的店铺对象")
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=False, verbose_name="订单对应客户对象")
+    groupon_attend = models.ForeignKey(GrouponAttend, on_delete=models.CASCADE, null=True, verbose_name="订单对应拼团参与对象")
     create_date = models.DateField(null=False, auto_now_add=True, verbose_name="下单日期")
     create_time = models.DateTimeField(null=False, auto_now_add=True, verbose_name="下单时间")
     delivery = models.ForeignKey(Delivery, null=True, on_delete=models.CASCADE, verbose_name="订单对应配送记录对象")
@@ -99,7 +101,6 @@ class Order(TimeBaseModel):
     def set_num(self, order_num: str):
         """设置订单号"""
         self.order_num = order_num
-        self.save()
 
     @property
     def delivery_period_text(self):

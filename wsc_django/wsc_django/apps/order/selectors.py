@@ -47,7 +47,7 @@ def get_shop_order_by_shop_id_and_id(shop_id: int, order_id: int):
     order = Order.objects.filter(shop_id=shop_id, id=order_id).first()
     if not order:
         return False, "订单不存在"
-    order.order_detail = list_order_details_by_order_id([order.id])
+    order.order_details = list_order_details_by_order_ids([order.id])
     order_address = get_order_address_by_order_id(order.id)
     if order_address:
         order.address = order_address
@@ -124,64 +124,6 @@ def get_order_by_num_for_update(num: str):
     return result
 
 
-def list_order_details_by_order_id(order_id: int):
-    """
-    通过订单ID获取子订单列表
-    :param order_id:
-    :return:
-    """
-    order_detail_list = OrderDetail.objects.filter(order_id=order_id).all()
-    return order_detail_list
-
-
-def list_shop_abnormal_orders(
-    shop_id: int,
-    order_types: list,
-    order_pay_types: list,
-    order_delivery_methods: list,
-    order_status: list,
-    num: str = None,
-):
-    """
-    获取商铺的异常订单列表
-    :param shop_id:
-    :param order_types:
-    :param order_pay_types:
-    :param order_delivery_methods:
-    :param order_status:
-    :param num:
-    :return:
-    """
-    # 获取异常订单列表
-    if num:
-        orders = (
-            Order.objects.filter(
-                shop_id=shop_id, order_num=num, order_status=OrderStatus.REFUND_FAIL
-            )
-        )
-    else:
-        orders = (
-            Order.objects.filter(
-                order_type__in=order_types,
-                pay_type__in=order_pay_types,
-                delivery_method__in=order_delivery_methods,
-                order_status__in=order_status,
-            )
-        )
-    order_list = orders.order_by("delivery_method", "delivery_period", "-id").all()
-    # 订单详情
-    order_ids = [order.id for order in order_list]
-    order_details = list_order_details_by_order_ids(order_ids)
-    map_order_lines = defaultdict(list)
-    for order_detail in order_details:
-        map_order_lines[order_detail.order_id].append(order_detail)
-    # 拼数据
-    for order in order_list:
-        order.order_details = map_order_lines.get(order.id)
-    return order_list
-
-
-
 def get_order_detail_by_id_only_msg_notify(order_id: int):
     """
     通过订单ID获取订单及详情，专供订单微信消息通知使用，其他地方不要调用
@@ -225,6 +167,30 @@ def get_customer_order_with_detail_by_id(customer_ids: list, order_id: int):
         # 查找最新的操作时间,作为订单开始或送达时间
         order.delivery_time = get_order_log_time_by_order_num(order.order_num)
     return True, order
+
+
+def get_order_by_customer_id_and_groupon_attend_id(customer_id: int, groupon_attend_id: int):
+    """
+    通过客户id和拼团参与id获取订单
+    :param customer_id:
+    :param groupon_attend_id:
+    :return:
+    """
+    order = (
+        Order.objects.filter(
+            customer_id=customer_id,
+            groupon_attend_id=groupon_attend_id,
+            order_status__in=[
+                OrderStatus.UNPAID,
+                OrderStatus.PAID,
+                OrderStatus.CONFIRMED,
+                OrderStatus.REFUNDED,
+                OrderStatus.FINISHED,
+                OrderStatus.WAITTING,
+            ]
+        ).first()
+    )
+    return order
 
 
 def list_shop_orders(
@@ -355,6 +321,63 @@ def list_customer_order_by_customer_ids(customer_ids: list):
     return order_list
 
 
+def list_order_details_by_order_id(order_id: int):
+    """
+    通过订单ID获取子订单列表
+    :param order_id:
+    :return:
+    """
+    order_detail_list = OrderDetail.objects.filter(order_id=order_id).all()
+    return order_detail_list
+
+
+def list_shop_abnormal_orders(
+    shop_id: int,
+    order_types: list,
+    order_pay_types: list,
+    order_delivery_methods: list,
+    order_status: list,
+    num: str = None,
+):
+    """
+    获取商铺的异常订单列表
+    :param shop_id:
+    :param order_types:
+    :param order_pay_types:
+    :param order_delivery_methods:
+    :param order_status:
+    :param num:
+    :return:
+    """
+    # 获取异常订单列表
+    if num:
+        orders = (
+            Order.objects.filter(
+                shop_id=shop_id, order_num=num, order_status=OrderStatus.REFUND_FAIL
+            )
+        )
+    else:
+        orders = (
+            Order.objects.filter(
+                order_type__in=order_types,
+                pay_type__in=order_pay_types,
+                delivery_method__in=order_delivery_methods,
+                order_status__in=order_status,
+            )
+        )
+    order_list = orders.order_by("delivery_method", "delivery_period", "-id").all()
+    # 订单详情
+    order_ids = [order.id for order in order_list]
+    order_details = list_order_details_by_order_ids(order_ids)
+    map_order_lines = defaultdict(list)
+    for order_detail in order_details:
+        map_order_lines[order_detail.order_id].append(order_detail)
+    # 拼数据
+    for order in order_list:
+        order.order_details = map_order_lines.get(order.id)
+    return order_list
+
+
 def count_abnormal_order(shop_id: int):
     """
     获取一个店铺异常(退款失败)的订单数
@@ -369,3 +392,74 @@ def count_abnormal_order(shop_id: int):
         .count()
     )
     return count
+
+
+def list_order_by_groupon_attend_id(shop_id: int, groupona_attend_id: int):
+    """
+    通过拼团参与ID列出一个团的所有订单
+    :param shop_id:
+    :param groupona_attend_id:
+    :return:
+    """
+    order_list = (
+        Order.objects.filter(
+            shop_id=shop_id,
+            groupona_attend_id=groupona_attend_id,
+            order_status__in=[
+                OrderStatus.UNPAID,
+                OrderStatus.PAID,
+                OrderStatus.CONFIRMED,
+                OrderStatus.FINISHED,
+                OrderStatus.REFUNDED,
+                OrderStatus.WAITTING,
+                OrderStatus.REFUND_FAIL,
+            ]
+        )
+        .order_by('id')
+        .all()
+    )
+    # 订单详情
+    order_ids = [order.id for order in order_list]
+    order_details = list_order_details_by_order_ids(order_ids)
+    map_order_lines = defaultdict(list)
+    for order_detail in order_details:
+        map_order_lines[order_detail.order_id].append(order_detail)
+    # 拼数据
+    for order in order_list:
+        order.order_details = map_order_lines.get(order.id)
+
+
+def list_waitting_order_by_groupon_attend_id(groupon_attend_id: int):
+    """
+    通过拼团参与id列出拼团中的订单
+    :param groupon_attend_id:
+    :return:
+    """
+    orders = Order.objects.filter(
+        groupon_attend_id=groupon_attend_id, order_status=OrderStatus.WAITTING
+    ).all()
+    return orders
+
+
+def list_unpaid_order_by_groupon_attend_id(groupon_attend_id: int):
+    """
+    通过拼团参与id列出未支付的订单
+    :param groupon_attend_id:
+    :return:
+    """
+    orders = Order.objects.filter(
+        groupon_attend_id=groupon_attend_id, order_status=OrderStatus.UNPAID
+    ).all()
+    return orders
+
+
+def list_unpay_order_by_groupon_attend_ids(groupon_attend_ids: list):
+    """
+    通过拼团参与id得到订单
+    :param groupon_attend_ids:
+    :return:
+    """
+    orders = Order.objects.filter(
+        groupon_attend_id__in=groupon_attend_ids, order_status=OrderStatus.UNPAID
+    ).all()
+    return orders

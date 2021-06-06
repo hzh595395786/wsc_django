@@ -13,7 +13,7 @@ class ProductGroup(TimeBaseModel):
 
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, null=False, verbose_name="对应的店铺对象")
     name = models.CharField(max_length=32, null=False, verbose_name="商品分组名称")
-    description = models.CharField(max_length=128, default="无", verbose_name="商品分组描述")
+    description = models.CharField(max_length=128, default="", verbose_name="商品分组描述")
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE,verbose_name="该商品分组的父级ID")
     sort = models.IntegerField(null=True, verbose_name="商品分组排序")
     level = models.SmallIntegerField(null=True, verbose_name="商品分组级别")

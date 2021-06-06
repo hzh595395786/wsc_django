@@ -1,15 +1,20 @@
 from rest_framework import serializers
 from django.db import transaction
 
-from config.services import create_receipt_by_shop, create_share_setup, create_some_config_by_shop_id, \
-    create_msg_notify_by_shop_id
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
 from shop.constant import ShopStatus
-from shop.services import create_shop, create_shop_reject_reason_by_shop_id, create_pay_channel
+from shop.services import create_shop, create_shop_reject_reason_by_shop_id, create_pay_channel, \
+    create_shop_creator_history_realname
 from staff.services import create_super_admin_staff
 from user.serializers import UserSerializer, operatorSerializer
 from wsc_django.utils.constant import DateFormat
+from config.services import (
+    create_receipt_by_shop,
+    create_share_setup,
+    create_some_config_by_shop_id,
+    create_msg_notify_by_shop_id
+)
 from wsc_django.utils.validators import (
     mobile_validator,
     shop_verify_status_validator,
@@ -30,10 +35,13 @@ class ShopCreateSerializer(serializers.Serializer):
     shop_county = serializers.CharField(required=True, label="商铺区编号")
     shop_address = serializers.CharField(required=True, max_length=100, label="详细地址")
     description = serializers.CharField(required=True, max_length=200, label="商铺描述")
-    inviter_phone = serializers.CharField(required=True, validators=[mobile_validator], label="推荐人手机号")
+    inviter_phone = serializers.CharField(required=False, validators=[mobile_validator], label="推荐人手机号")
+    realname = serializers.CharField(required=False, label="历史真实姓名")
 
     def create(self, validated_data):
         user = self.context['user']
+        # 申请时的历史真实姓名
+        history_realname = validated_data.pop("realname", None)
         with transaction.atomic():
             # 创建一个保存点
             save_id = transaction.savepoint()
@@ -41,9 +49,9 @@ class ShopCreateSerializer(serializers.Serializer):
                 # 创建商铺
                 shop = create_shop(validated_data, user)
                 # 创建小票
-                create_receipt_by_shop(shop)
+                create_receipt_by_shop(shop.id)
                 # 创建默认配送设置
-                delivery_config = create_delivery_config(shop)
+                delivery_config = create_delivery_config(shop.id)
                 create_pick_period_line(delivery_config, "12:00", "13:00")
                 create_pick_period_line(delivery_config, "17:00", "18:00")
                 create_pick_period_line(delivery_config, "21:00", "22:00")
@@ -57,6 +65,9 @@ class ShopCreateSerializer(serializers.Serializer):
                 create_some_config_by_shop_id(shop.id)
                 # 创建默认消息通知配置
                 create_msg_notify_by_shop_id(shop.id)
+                # 储存申请者的历史真实姓名
+                if history_realname:
+                    create_shop_creator_history_realname(shop.id, history_realname)
             except Exception as e:
                 print(e)
                 # 回滚到保存点
@@ -80,7 +91,7 @@ class SuperShopSerializer(serializers.Serializer):
     description = serializers.CharField(label="商铺描述")
     create_time = serializers.DateTimeField(label="商铺创建时间")
     shop_status = serializers.IntegerField(source="status", label="商铺状态")
-    create_user_data = UserSerializer(read_only=True,label="商铺创建人信息")
+    create_user_data = UserSerializer(read_only=True, label="商铺创建人信息")
     super_admin_data = UserSerializer(label="超管信息")
 
 
@@ -158,7 +169,7 @@ class SuperShopStatusSerializer(serializers.Serializer):
         shop_status = validated_data["status"]
         instance.status = shop_status
         if shop_status == ShopStatus.REJECTED:
-            create_shop_reject_reason_by_shop_id(instance, validated_data['reject_reason'])
+            create_shop_reject_reason_by_shop_id(instance.id, validated_data['reject_reason'])
         instance.save()
         return instance
 

@@ -31,5 +31,14 @@ class OrderLogSerializer(_LogSerializer):
     new_value = serializers.CharField(required=False, label="新值,从content取得")
 
 
-class ConfigSerializer(_LogSerializer):
+class ConfigLogSerializer(_LogSerializer):
     """设置日志序列化器类"""
+
+
+class ProductLogSerializer(_LogSerializer):
+    """货品日志序列化器类"""
+
+
+class PromotionLogSerializer(_LogSerializer):
+    """货品日志序列化器类"""
+

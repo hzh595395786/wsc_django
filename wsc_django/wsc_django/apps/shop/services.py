@@ -37,7 +37,7 @@ def create_shop(shop_info: dict, user: User):
     shop_info["shop_code"] = shop_code
     shop_info["shop_phone"] = user.phone
     shop_info["super_admin_id"] = user.id
-    shop = Shop.objects.create(**shop_info)
+    shop = Shop(**shop_info)
     shop.save()
     return shop
 
@@ -49,19 +49,32 @@ def create_pay_channel(pay_channel_info: dict, shop_id: int):
     :param shop_id:
     :return:
     """
-    shop_pay_channel = PayChannel.objects.create(shop_id=shop_id, **pay_channel_info)
+    shop_pay_channel = PayChannel(shop_id=shop_id, **pay_channel_info)
     shop_pay_channel.save()
     return shop_pay_channel
 
 
-def create_shop_reject_reason_by_shop_id(shop: Shop, reject_reason: str):
+def create_shop_reject_reason_by_shop_id(shop_id: int, reject_reason: str):
     """
     给拒绝的店铺创建一个拒绝理由
     :param shop_id:
     :return:
     """
-    reject_reason = ShopRejectReason.objects.create(id=shop, reject_reason=reject_reason)
+    reject_reason = ShopRejectReason(id=shop_id, reject_reason=reject_reason)
+    reject_reason.save()
     return reject_reason
+
+
+def create_shop_creator_history_realname(shop_id: int, history_realname: str):
+    """
+    储存店铺创建者的历史真实姓名, 与店铺绑定
+    :param shop_id:
+    :param history_realname:
+    :return:
+    """
+    history_realname = HistoryRealName(id=shop_id, realname=history_realname)
+    history_realname.save()
+    return history_realname
 
 
 def update_shop_data(shop: Shop, args: dict):
@@ -117,23 +130,6 @@ def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True):
         shop_list_query = shop_list_query.exclude(status=ShopStatus.CLOSED)
     shop_list = shop_list_query.all()
     return shop_list
-
-
-def get_shop_product_species_count_by_shop_ids(shop_ids: list):
-    """
-    通过店铺id列表查找商铺的货品种类数量
-    :param shop_ids: 商铺id列表
-    :return:
-    """
-    shop_product_count = (
-        Shop.objects.filter(id__in=shop_ids).
-        exclude(product__status=ProductStatus.DELETED).
-        annotate(product_count=Count("product"))
-    )
-    shop_product_count_dict = {
-        shop.id:shop.product_count for shop in shop_product_count
-    }
-    return shop_product_count_dict
 
 
 def list_shop_by_shop_status(shop_status: int):

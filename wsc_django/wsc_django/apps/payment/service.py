@@ -26,7 +26,7 @@ def create_order_transaction(
     :param channel_trade_no:
     :return:
     """
-    order_transaction = OrderTransaction.objects.create(
+    order_transaction = OrderTransaction(
         order_id=order_id,
         transaction_id=transaction_id,
         receipt_fee=receipt_fee,

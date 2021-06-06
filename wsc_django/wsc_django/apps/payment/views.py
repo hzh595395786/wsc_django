@@ -58,6 +58,7 @@ class MallOpenidLcswView(MallBaseView):
         )
         if success:
             user_openid.set_wx_openid(args["openid"])
+            user_openid.save()
         else:
             create_user_openid_interface(
                 self.current_user.id, mp_appid, args["openid"]

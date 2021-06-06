@@ -1,17 +1,15 @@
 """测试使用"""
-from urllib.parse import urlencode
-
-from rest_framework.generics import GenericAPIView, ListAPIView
+from django_redis import get_redis_connection
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework_jwt.settings import api_settings
 
-from celery_tasks.celery_autowork_task import auto_cancel_order
-from celery_tasks.celery_tplmsg_task import OrderCommitTplMsg
+from delivery.models import DeliveryConfig
 from demo.serializers import DemoSerializer
-from shop.models import HistoryRealName, Shop
+from product.services import create_product_pictures
 from user.models import User
-from wsc_django.utils.views import GlobalBaseView, UserBaseView
+from user.services import get_user_by_id
+from wsc_django.utils.views import GlobalBaseView
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -37,6 +35,6 @@ class DemoView(GlobalBaseView):
         return self.send_success(token=token)
 
     def post(self, request):
-        res = auto_cancel_order.apply_async(args=[1,1], countdown=15 * 60)
-        print(res)
-        return Response()
+        from django.db.transaction import TransactionManagementError
+        raise TransactionManagementError("错误")
+        return self.send_success()

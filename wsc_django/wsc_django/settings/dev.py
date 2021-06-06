@@ -18,6 +18,7 @@ import datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 UTILS_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 #设置python导包环境
 import sys
 sys.path.insert(0, os.path.join(BASE_DIR, "apps"))
@@ -33,7 +34,7 @@ SECRET_KEY = 'pspe=jr1_77&m+zqzpyr@7$vl*@s$2v+d*=%0*lauoy+z936sr'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # 告知Django认证系统使用我们自定义的模型类。
 AUTH_USER_MODEL = 'user.User'
@@ -248,10 +249,25 @@ MP_APPSECRET = 'f71da8ef954f3d09bfcf5f646a95bbc9'
 
 # CORS
 CORS_ORIGIN_WHITELIST = (
-    'http://127.0.0.1:8080',
-    'http://localhost:8080',
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'http://81.68.135.24:8000',
+    'http://81.68.135.24:80',
+    'http://81.68.135.24:3030',
+    'ws://localhost:8000',
+    'ws://127.0.0.1:8000',
 )
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True  # 允许携带cookie
+CORS_ALLOW_METHODS = (
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+    'VIEW',
+)
 
 # 利楚商务测试服务器
 LCSW_CALLBACK_HOST = "http://127.0.0.1:8000"
@@ -259,8 +275,6 @@ LCSW_HANDLE_HOST = "https://pay.lcsw.cn/lcsw"
 LCSW_INST_NO = "52100011"
 LCSW_INST_KEY = "a6540e60532a4f5f9207536cdd37d83d"
 
-# celery broker相关
-CELERY_BROKER = "amqp://guest@localhost:5674//"
 
 # 前端商城域名
 WSC_HOST_NAME = ""

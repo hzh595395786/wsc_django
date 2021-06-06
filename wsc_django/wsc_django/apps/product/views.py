@@ -1,18 +1,20 @@
 from rest_framework import status
-from rest_framework.response import Response
 from webargs.djangoparser import use_args
 from webargs import fields, validate
-from django.http import QueryDict
 
+from logs.constant import ProductLogType
 from product.constant import ProductStatus, ProductOperationType
+from promotion.constant import PromotionType
 from wsc_django.utils.arguments import StrToList
 from wsc_django.utils.pagination import StandardResultsSetPagination
 from wsc_django.utils.views import AdminBaseView, MallBaseView
-from product.interface import list_order_with_order_details_by_product_id_interface
+from product.interface import list_order_with_order_details_by_product_id_interface, create_product_log_interface, \
+    list_alive_groupon_by_product_ids_interface
 from product.serializers import (
     MallProductSerializer,
     ProductCreateSerializer,
     AdminProductSerializer,
+    AdminProductsSerializer,
     MallProductGroupSerializer,
     AdminProductGroupSerializer,
     AdminProductSaleRecordSerializer,
@@ -68,6 +70,7 @@ class AdminProductView(AdminBaseView):
     )
     def post(self, request, args):
         group_id = args.get("group_id")
+        args["shop_id"] = self.current_shop.id
         product_group = get_product_group_by_shop_id_and_id(self.current_shop.id, group_id)
         if not product_group:
             return self.send_fail(error_text="货品分组不存在")
@@ -138,15 +141,18 @@ class AdminProductView(AdminBaseView):
         product_group = get_product_group_by_shop_id_and_id(shop_id, group_id)
         if not product_group:
             return self.send_fail(error_text="货品分组不存在")
+        args["group_id"] = product_group.id
         serializer = AdminProductSerializer(product, data=args, context={"self":self})
         if not serializer.is_valid():
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return self.send_error(
+                error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save()
         return self.send_success(data=serializer.data)
 
 
 class AdminProductsView(AdminBaseView):
-    """后台-货品-获取货品列表&批量修改货品(上架，下架)"""
+    """后台-货品-获取货品列表&批量修改货品(上架，下架)&批量删除货品"""
     pagination_class = StandardResultsSetPagination
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
@@ -160,7 +166,15 @@ class AdminProductsView(AdminBaseView):
                 missing=[ProductStatus.ON, ProductStatus.OFF],
                 validate=[validate.ContainsOnly([ProductStatus.ON, ProductStatus.OFF])],
                 comment="货品状态,上架、下架",
-            )
+            ),
+            "promotion_types": StrToList(
+                required=False,
+                missing=[],
+                validate=[
+                    validate.ContainsOnly({PromotionType.NORMAL, PromotionType.GROUPON})
+                ],
+                comment="货品营销类型",
+            ),
         },
         location="query"
     )
@@ -170,9 +184,9 @@ class AdminProductsView(AdminBaseView):
         product_list = list_product_by_filter(shop.id, **args)
         # page为-1时不分页
         if page < 0:
-            product_list = {"results": AdminProductSerializer(product_list, many=True).data}
+            product_list = {"results": AdminProductsSerializer(product_list, many=True).data}
         else:
-            product_list = self._get_paginated_data(product_list, AdminProductSerializer)
+            product_list = self._get_paginated_data(product_list, AdminProductsSerializer)
         return self.send_success(data_list=product_list)
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
@@ -199,7 +213,23 @@ class AdminProductsView(AdminBaseView):
         operation_type = args.get("operation_type")
         product_ids = args.get("product_ids")
         product_list = list_product_by_ids(self.current_shop.id, product_ids)
-        update_products_status(product_list, operation_type)
+        product_ids = [pl.id for pl in product_list]
+        product_ids_set = list_alive_groupon_by_product_ids_interface(product_ids)
+        product_name_list = update_products_status(
+            product_list, operation_type, product_ids_set
+        )
+        if product_name_list:
+            if operation_type == ProductOperationType.ON:
+                log_operate_type = ProductLogType.ON_PRODUCT
+            else:
+                log_operate_type = ProductLogType.OFF_PRODUCT
+            log_info = {
+                "shop_id": self.current_shop.id,
+                "operator_id": self.current_user.id,
+                "operate_type": log_operate_type,
+                "operate_content": "、".join(product_name_list),
+            }
+            create_product_log_interface(log_info)
         return self.send_success()
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
@@ -216,11 +246,20 @@ class AdminProductsView(AdminBaseView):
     )
     def delete(self, request, args):
         product_ids = args.get("product_ids")
-        ret, info = delete_product_by_ids_and_shop_id(product_ids, self.current_shop.id)
-        if not ret:
-            return self.send_fail(error_text=info)
-        else:
-            return self.send_success()
+        product_list = list_product_by_ids(self.current_shop.id, product_ids)
+        product_ids = [pl.id for pl in product_list]
+        product_ids_set = list_alive_groupon_by_product_ids_interface(product_ids)
+        product_name_list = delete_product_by_ids_and_shop_id(product_list, product_ids_set)
+        # 记录日志
+        if product_name_list:
+            log_info = {
+                "shop_id": self.current_shop.id,
+                "operator_id": self.current_user.id,
+                "operate_type": ProductLogType.DELETE_PRODUCT,
+                "operate_content": "、".join(product_name_list),
+            }
+            create_product_log_interface(log_info)
+        return self.send_success()
 
 
 class AdminProductGroupsView(AdminBaseView):
@@ -276,8 +315,6 @@ class AdminProductGroupsView(AdminBaseView):
 
 class AdminProductGroupView(AdminBaseView):
     """后台-货品-添加货品分组&编辑货品分组&删除货品分组"""
-    default_status_list = [ProductStatus.ON, ProductStatus.OFF]
-    product_status_list = [ProductStatus.ON, ProductStatus.OFF]
 
     @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
     @use_args(
@@ -317,7 +354,7 @@ class AdminProductGroupView(AdminBaseView):
         product_group = get_product_group_by_shop_id_and_id(shop.id, group_id)
         if not product_group:
             return self.send_fail(error_text="货品分组不存在")
-        serializer = AdminProductGroupSerializer(product_group, data=request.data)
+        serializer = AdminProductGroupSerializer(product_group, data=request.data, context={"self": self})
         if not serializer.is_valid():
             return self.send_error(error_message=serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         serializer.save()
@@ -329,11 +366,14 @@ class AdminProductGroupView(AdminBaseView):
     )
     def delete(self, request, args):
         shop = self.current_shop
+        user = self.current_user
         group_id = args.get("group_id")
         product_group = get_product_group_by_shop_id_and_id(shop.id, group_id)
         if not product_group:
             return self.send_fail(error_text="货品分组不存在")
-        ret, info = delete_product_group_by_id_and_shop_id(product_group, group_id, shop.id)
+        ret, info = delete_product_group_by_id_and_shop_id(
+            product_group, group_id, shop.id, user.id
+        )
         if not ret:
             return self.send_fail(error_text=info)
         else:
@@ -383,6 +423,32 @@ class AdminProductSaleRecordView(AdminBaseView):
             product_sale_record_list, AdminProductSaleRecordSerializer
         )
         return self.send_success(data_list=product_sale_record_list)
+
+
+class AdminProductAliveGrouponView(AdminBaseView):
+    """后台-货品-查询此刻或者未来有拼团活动的货品"""
+
+    @AdminBaseView.permission_required([AdminBaseView.staff_permissions.ADMIN_PRODUCT])
+    @use_args(
+        {
+            "product_ids": fields.List(
+                fields.Integer(required=True),
+                required=True,
+                validate=[validate.Length(1)],
+                commet="货品ID列表",
+            )
+        },
+        location="query",
+    )
+    def get(self, request, args):
+        product_ids = args["product_ids"]
+        groupon_product_set = list_alive_groupon_by_product_ids_interface(
+            product_ids
+        )
+        product_ids_dict = {"alive_grouon_product": []}
+        for product_id in groupon_product_set:
+            product_ids_dict["alive_grouon_product"].append(product_id)
+        return self.send_success(data=product_ids_dict)
 
 
 class MallProductView(MallBaseView):

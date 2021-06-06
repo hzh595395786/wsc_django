@@ -5,6 +5,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework_jwt.authentication import JSONWebTokenAuthentication
 from rest_framework_jwt.settings import api_settings
 
+from settings import AUTH_COOKIE_DOMAIN
 from shop.services import get_shop_by_shop_id, get_shop_by_shop_code
 from staff.constant import StaffRole, StaffPermission
 from staff.services import get_staff_by_user_id_and_shop_id
@@ -58,7 +59,10 @@ class GlobalBaseView(GenericAPIView):
         return res
 
     def send_error(self, status_code, error_message: dict=None):
-        """后期可以在改进"""
+        """后期可以在改进，这里直接返回对应状态码的响应"""
+        # 处理序列化器返回错误
+        if status_code == 400:
+            error_message = {'error_text': list(error_message)[0] + "错误"}
         if error_message:
             return Response(data=error_message, status=status_code)
         else:
@@ -88,9 +92,7 @@ class UserBaseView(GlobalBaseView):
 
     def initialize_request(self, request, *args, **kwargs):
         request = super().initialize_request(request, *args, **kwargs)
-        # todo 临时使用 免去登录
-        # user = self._get_current_user(request)
-        user = User.objects.get(id=1)
+        user = self._get_current_user(request)
         self.current_user = user
         # 用于WSCIsLoginAuthenticate中进行验证
         request.current_user = self.current_user
@@ -126,11 +128,14 @@ class StaffBaseView(UserBaseView):
 
     def initialize_request(self, request, *args, **kwargs):
         request = super().initialize_request(request, *args, **kwargs)
-        wsc_shop_id = request.get_signed_cookie("wsc_shop_id", salt="微商城商铺id")
+        try:
+            wsc_shop_id = request.get_signed_cookie(
+                "wsc_shop_id", salt="hzh_wsc_shop_id",
+            )
+        except Exception as e:
+            wsc_shop_id = 0
         # 从cookie中获取shop_id进行查询
         shop = get_shop_by_shop_id(int(wsc_shop_id))
-        # # todo 临时使用 免去cookie
-        # shop = get_shop_by_shop_id(1)
         self.current_shop = shop
         current_staff = None
         if shop and self.current_user:
@@ -168,5 +173,22 @@ class MallBaseView(UserBaseView):
         if not shop:
             raise exceptions.NotFound("店铺不存在")
         self.current_shop = shop
+
+
+class SuperBaseView(GlobalBaseView):
+    """对接总后台, 没有登录信息和店铺信息"""
+
+    def _get_current_user(self, request):
+        jwt = JSONWebTokenAuthentication()
+        try:
+            res = jwt.authenticate(request)
+        except Exception as e:
+            print(e)
+            res = None
+        if res:
+            user = res[0]
+        else:
+            user = None
+        return user
 
 
