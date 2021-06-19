@@ -131,7 +131,13 @@ class SuperShopView(SuperBaseView):
 class SuperShopListView(SuperBaseView):
     """总后台-商铺-商铺列表"""
 
-    def get(self, request):
+    @use_args(
+        {
+            "role": fields.Integer(required=False, missing=1, comment="访问角色，1：为普通用户，2.为admin用户"),
+        },
+        location="query"
+    )
+    def get(self, request, args):
         user = self._get_current_user(request)
         if not user:
             return self.send_error(
@@ -143,7 +149,7 @@ class SuperShopListView(SuperBaseView):
             return self.send_success(data_list=[])
         # 根据查到的店铺信息找到对应店铺的信息
         shop_ids = [sl.shop_id for sl in staff_list]
-        shop_list = list_shop_by_shop_ids(shop_ids)
+        shop_list = list_shop_by_shop_ids(shop_ids, args.get("role", 1))
         # 查找所有店铺的商品数量
         shop_id_2_product_count = count_product_by_shop_ids_interface(shop_ids)
         # 添加额外属性

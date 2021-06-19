@@ -6,7 +6,7 @@ from django.urls import path
 from config import views
 
 
-urlpatterns = [
+urlpatterns_admin = [
     path('api/admin/config/shop-info/', views.AdminConfigShopInfoView.as_view()),  # 店铺信息获取
     path('api/admin/config/print-info/', views.AdminConfigPrintInfoView.as_view()),  # 打印信息获取
     path('api/admin/config/msg-notify/', views.AdminConfigMsgNotifyView.as_view()),  # 获取消息通知设置&设置消息通知
@@ -41,3 +41,9 @@ urlpatterns = [
     path('api/config/wechat/jsapi-signature/', views.WechatJsapiSigntureView.as_view()),  # 获取微信jsapi
     path('api/qiniu/img-token/', views.QiniuImgTokenView.as_view()),  # 获取七牛的上传照片token
 ]
+
+urlpatterns_mall = [
+    path('api/mall/tencent/COS/credential/', views.TencentCOSCredential.as_view()),  # 获取微信jsapi
+]
+
+urlpatterns = urlpatterns_mall + urlpatterns_admin

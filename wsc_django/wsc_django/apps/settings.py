@@ -234,7 +234,8 @@ REDIS_PASSWORD = ""
 # jwt相关配置
 JWT_AUTH = {
     'JWT_EXPIRATION_DELTA': datetime.timedelta(days=1), # 有效期
-    'JWT_RESPONSE_PAYLOAD_HANDLER': 'users.utils.jwt_response_payload_handler', # 响应体格式
+    'JWT_PAYLOAD_HANDLER': 'user.utils.jwt_payload_handler', # 自定义的荷载生成函数
+    'JWT_RESPONSE_PAYLOAD_HANDLER': 'user.utils.jwt_response_payload_handler', # 自定义的响应体格式
 }
 
 # 腾讯云短信
@@ -243,9 +244,11 @@ TENCENT_SMS_APPKEY = "0351a7ac6e3f4be41a77dd4626792ea2"
 # 云片短信
 YUNPIAN_SYSTEM_APIKEY = "6149a117b1f6c6991232298eb078fb30"
 
-# 微信公众号相关
+# 微信公众平台相关
 MP_APPID = 'wx819299c9d4c7bd24'
 MP_APPSECRET = 'f71da8ef954f3d09bfcf5f646a95bbc9'
+MINI_PROGRAM_APPID = 'wxcb39f504138582a6'
+MINI_PROGRAM_APPSECRET = '9fab84d89f304f40dec86707e16ceaca'
 
 # CORS
 CORS_ORIGIN_WHITELIST = (
@@ -294,3 +297,8 @@ BAIDU_SECRETKEY = "HO7m2a7eTGeM9rPfMc73REWy7KwYwSCR"
 # cookie相关
 AUTH_COOKIE_DOMAIN = "http://hzhst1314.cn"
 AUTH_COOKIE_EXPIRE = 60*60*24*7
+
+# 腾讯云COS
+TENCENT_COS_SECRETID = 'AKIDOdiZCessd9QSFn7C2cx3vYw50g6HEwPd'
+TENCENT_COS_SECRETKEY = '4uVv74mFUUGn58vTmqfGckcHhspX0EEz'
+TENCENT_COS_IMG_HOST = 'https://zhihao-1300126182.cos.ap-nanjing.myqcloud.com/'

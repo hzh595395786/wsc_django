@@ -4,8 +4,13 @@ from django.db import transaction
 from delivery.services import create_delivery_config, create_pick_period_line
 from product.services import create_default_group_by_shop
 from shop.constant import ShopStatus
-from shop.services import create_shop, create_shop_reject_reason_by_shop_id, create_pay_channel, \
-    create_shop_creator_history_realname
+from shop.services import (
+    create_shop,
+    create_pay_channel,
+    create_shop_mini_program_qcode,
+    create_shop_reject_reason_by_shop_id,
+    create_shop_creator_history_realname,
+)
 from staff.services import create_super_admin_staff
 from user.serializers import UserSerializer, operatorSerializer
 from wsc_django.utils.constant import DateFormat
@@ -13,7 +18,7 @@ from config.services import (
     create_receipt_by_shop,
     create_share_setup,
     create_some_config_by_shop_id,
-    create_msg_notify_by_shop_id
+    create_msg_notify_by_shop_id,
 )
 from wsc_django.utils.validators import (
     mobile_validator,
@@ -48,6 +53,8 @@ class ShopCreateSerializer(serializers.Serializer):
             try:
                 # 创建商铺
                 shop = create_shop(validated_data, user)
+                # 创建商铺小程序码
+                create_shop_mini_program_qcode(shop.shop_code)
                 # 创建小票
                 create_receipt_by_shop(shop.id)
                 # 创建默认配送设置

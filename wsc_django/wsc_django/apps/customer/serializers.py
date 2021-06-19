@@ -44,6 +44,7 @@ class MallMineAddressSerializer(serializers.Serializer):
     county = serializers.IntegerField(label="区编号")
     address = serializers.CharField(label="详细地址")
     default = serializers.IntegerField(label="是否为默认地址")
+    added = serializers.CharField(required=False, allow_blank=True, label="补充说明")
     longitude = serializers.FloatField(required=False, label="经度")
     latitude = serializers.FloatField(required=False, label="纬度")
 

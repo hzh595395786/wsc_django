@@ -241,6 +241,11 @@ class MallMineAddressView(MallBaseView):
                 validate=[validate.Length(1, 50)],
                 comment="详细地址",
             ),
+            'added': fields.String(
+                required=False,
+                allow_none=True,
+                comment="补充说明",
+            ),
             "default": fields.Integer(
                 required=False,
                 default=MineAddressDefault.NO,
@@ -296,6 +301,11 @@ class MallMineAddressView(MallBaseView):
                 required=True,
                 validate=[validate.Length(1, 50)],
                 comment="详细地址",
+            ),
+            'added': fields.String(
+                required=False,
+                allow_none=True,
+                comment="补充说明",
             ),
             "default": fields.Integer(
                 required=False,

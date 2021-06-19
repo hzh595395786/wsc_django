@@ -7,6 +7,7 @@ from rest_framework_jwt.settings import api_settings
 from delivery.models import DeliveryConfig
 from demo.serializers import DemoSerializer
 from product.services import create_product_pictures
+from shop.utils import put_qcode_file_to_tencent_cos, get_shop_mini_program_qcode
 from user.models import User
 from user.services import get_user_by_id
 from wsc_django.utils.views import GlobalBaseView
@@ -30,11 +31,12 @@ class DemoView(GlobalBaseView):
         user = User.objects.filter(id=user_id).first()
         jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
         jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
-        payload = jwt_payload_handler(user)
+        import datetime
+        payload = jwt_payload_handler(user, datetime.timedelta(days=1))
         token = jwt_encode_handler(payload)
         return self.send_success(token=token)
 
     def post(self, request):
-        from django.db.transaction import TransactionManagementError
-        raise TransactionManagementError("错误")
-        return self.send_success()
+        qcode_file = get_shop_mini_program_qcode('bc7712bac')
+        response = put_qcode_file_to_tencent_cos(qcode_file, 'bc7712bac')
+        return self.send_success(data=response)

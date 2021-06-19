@@ -1,6 +1,7 @@
 """项目要用到的一些类和函数"""
 import datetime
 import re
+import random
 
 import requests
 from django_redis import get_redis_connection
@@ -11,6 +12,18 @@ from wsc_django.utils.region_file import REGION
 
 
 ORDER_SHOP_TYPE_PREFIX = "60"  # 微商城系统店铺类型固定订单前缀
+
+
+class Random:
+    """随机逻辑相关的类"""
+
+    @classmethod
+    def gen_random_str(cls, str_length):
+        init_str = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+        random_str = ''
+        for i in range(str_length):
+            random_str += random.choice(init_str)
+        return random_str
 
 
 class FuncField(serializers.Field):

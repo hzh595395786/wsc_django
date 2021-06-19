@@ -701,7 +701,31 @@ class MallOrdersView(MallBaseView):
     """商城-订单列表"""
     pagination_class = StandardResultsSetPagination
 
-    def get(self, reuqest, shop_code):
+    @use_args(
+        {
+            "order_status": StrToList(
+                required=False,
+                missing=[],
+                validate=[
+                    validate.ContainsOnly(
+                        [
+                            OrderStatus.CANCELED,
+                            OrderStatus.UNPAID,
+                            OrderStatus.PAID,
+                            OrderStatus.CONFIRMED,
+                            OrderStatus.FINISHED,
+                            OrderStatus.REFUNDED,
+                            OrderStatus.REFUND_FAIL,
+                            OrderStatus.WAITTING,
+                        ]
+                    )
+                ],
+                comment="订单状态列表",
+            ),
+        },
+        location="query",
+    )
+    def get(self, reuqest, args, shop_code):
         self._set_current_shop(reuqest, shop_code)
         user_id = self.current_user.id
         shop_id = self.current_shop.id
@@ -709,7 +733,7 @@ class MallOrdersView(MallBaseView):
         # 不是客户在这个店肯定没单
         if not customer:
             return self.send_success(data_list=[])
-        order_list = list_customer_order_by_customer_ids([customer.id])
+        order_list = list_customer_order_by_customer_ids([customer.id], args.get('order_status'))
         order_list = self._get_paginated_data(order_list, MallOrdersSerializer)
         return self.send_success(data_list=order_list)
 

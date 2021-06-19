@@ -3,6 +3,7 @@ from django.db.models import Count
 
 from product.constant import ProductStatus
 from shop.models import Shop, HistoryRealName, ShopRejectReason, PayChannel
+from shop.utils import get_shop_mini_program_qcode, put_qcode_file_to_tencent_cos
 from user.models import User
 from shop.constant import (
     ShopStatus,
@@ -11,7 +12,7 @@ from shop.constant import (
 
 def create_shop(shop_info: dict, user: User):
     """
-    创建一个店铺
+    创建一个商铺
     :param shop_info:{
         "shop_name": "name",
         "shop_img": "http://xxx",
@@ -28,7 +29,7 @@ def create_shop(shop_info: dict, user: User):
     :return:
     """
     # 创建店铺
-    # 随机一个店铺编码, 查一下,万一重复就再来一个
+    # 随机一个商铺编码, 查一下,万一重复就再来一个
     while True:
         shop_code = str(uuid4())[-9:]
         shop = Shop.objects.filter(shop_code=shop_code)
@@ -56,7 +57,7 @@ def create_pay_channel(pay_channel_info: dict, shop_id: int):
 
 def create_shop_reject_reason_by_shop_id(shop_id: int, reject_reason: str):
     """
-    给拒绝的店铺创建一个拒绝理由
+    给拒绝的商铺创建一个拒绝理由
     :param shop_id:
     :return:
     """
@@ -67,7 +68,7 @@ def create_shop_reject_reason_by_shop_id(shop_id: int, reject_reason: str):
 
 def create_shop_creator_history_realname(shop_id: int, history_realname: str):
     """
-    储存店铺创建者的历史真实姓名, 与店铺绑定
+    储存商铺创建者的历史真实姓名, 与店铺绑定
     :param shop_id:
     :param history_realname:
     :return:
@@ -77,9 +78,20 @@ def create_shop_creator_history_realname(shop_id: int, history_realname: str):
     return history_realname
 
 
+def create_shop_mini_program_qcode(shop_code: str):
+    """
+    为商铺创建小程序码
+    :param shop_code:
+    :return:
+    """
+    qcode_file = get_shop_mini_program_qcode(shop_code)
+    success, url = put_qcode_file_to_tencent_cos(qcode_file, shop_code)
+    return success, url
+
+
 def update_shop_data(shop: Shop, args: dict):
     """
-    修改店铺信息
+    修改商铺信息
     :param shop:
     :param args:
     :return:
@@ -118,23 +130,26 @@ def get_shop_by_shop_id(shop_id: int, filter_close: bool = True):
     return shop
 
 
-def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True):
+def list_shop_by_shop_ids(shop_ids: list, filter_close: bool = True, role: int = 1):
     """
-    通过ship_id列表查询店铺列表
+    通过ship_id列表查询商铺列表
     :param shop_ids:
     :param filter_close:过滤关闭
+    :param role: 访问角色，1：为普通用户，2.为admin用户，普通用户访问时只能查到已审核的店铺
     :return:
     """
     shop_list_query = Shop.objects.filter(id__in=shop_ids)
     if shop_list_query and filter_close:
         shop_list_query = shop_list_query.exclude(status=ShopStatus.CLOSED)
+    if role == 1:
+        shop_list_query = shop_list_query.filter(status=ShopStatus.NORMAL)
     shop_list = shop_list_query.all()
     return shop_list
 
 
 def list_shop_by_shop_status(shop_status: int):
     """
-    查询某一状态的所有店铺
+    查询某一状态的所有商铺
     :param shop_status:
     :return:
     """
@@ -144,7 +159,7 @@ def list_shop_by_shop_status(shop_status: int):
 
 def list_shop_creator_history_realname(shop_ids: list):
     """
-    找出店铺创建的历史真实姓名列表
+    找出商铺创建的历史真实姓名列表
     :param shop_ids:
     :return:
     """
@@ -155,6 +170,6 @@ def list_shop_creator_history_realname(shop_ids: list):
 
 
 def list_shop_reject_reason(shop_ids: list):
-    """查询出所有的店铺拒绝信息"""
+    """查询出所有的商铺拒绝信息"""
     reject_reason_list = ShopRejectReason.objects.filter(id__in=shop_ids).all()
     return reject_reason_list

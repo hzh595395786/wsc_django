@@ -1,3 +1,4 @@
+import json
 import random
 import re
 import string
@@ -6,6 +7,7 @@ import qiniu
 import requests
 
 from django_redis import get_redis_connection
+from sts.sts import Sts
 from webargs.djangoparser import use_args
 from webargs import fields, validate
 from wechatpy import WeChatClient
@@ -17,7 +19,12 @@ from logs.constant import ConfigLogType
 from shop.constant import ShopVerifyActive, ShopPayActive
 from shop.serializers import AdminShopSerializer
 from wsc_django.apps.settings import (
-    MP_APPID, MP_APPSECRET, QINIU_ACCESS_KEY, QINIU_SECRET_KEY, QINIU_BUCKET_SHOP_IMG
+    MP_APPID, MP_APPSECRET,
+    QINIU_ACCESS_KEY,
+    QINIU_SECRET_KEY,
+    QINIU_BUCKET_SHOP_IMG,
+    TENCENT_COS_SECRETID,
+    TENCENT_COS_SECRETKEY,
 )
 from config.services import (
     create_share_setup,
@@ -515,3 +522,46 @@ class QiniuImgTokenView(GlobalBaseView):
         q = qiniu.Auth(QINIU_ACCESS_KEY, QINIU_SECRET_KEY)
         token = q.upload_token(QINIU_BUCKET_SHOP_IMG, expires=60 * 30)
         return self.send_success(token=token)
+
+
+class TencentCOSCredential(GlobalBaseView):
+    """商城端-腾讯云COS临时凭证"""
+
+    def get(self, request):
+        config = {
+            'url': 'https://sts.tencentcloudapi.com/',
+            # 域名，非必须，默认为 sts.tencentcloudapi.com
+            'domain': 'sts.tencentcloudapi.com',
+            # 临时密钥有效时长，单位是秒
+            'duration_seconds': 1800,
+            'secret_id': TENCENT_COS_SECRETID,
+            # 固定密钥
+            'secret_key': TENCENT_COS_SECRETKEY ,
+            # 设置网络代理
+            # 'proxy': {
+            #     'http': 'xx',
+            #     'https': 'xx'
+            # },
+            # 换成你的 bucket
+            'bucket': 'zhihao-1300126182',
+            # 换成 bucket 所在地区
+            'region': 'ap-nanjing',
+            # 这里改成允许的路径前缀，可以根据自己网站的用户登录态判断允许上传的具体路径
+            # 例子： a.jpg 或者 a/* 或者 * (使用通配符*存在重大安全风险, 请谨慎评估使用)
+            'allow_prefix': '*',
+            # 密钥的权限列表。简单上传和分片需要以下的权限，其他权限列表请看 https://cloud.tencent.com/document/product/436/31923
+            'allow_actions': [
+                # 简单上传
+                'name/cos:PutObject',
+                'name/cos:PostObject',
+            ],
+
+        }
+        response = {}
+        try:
+            sts = Sts(config)
+            response = sts.get_credential()
+            print('get data : ' + json.dumps(dict(response), indent=4))
+        except Exception as e:
+            print(e)
+        return self.send_success(data=response)

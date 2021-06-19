@@ -18,6 +18,7 @@ class OrderAddressSerializer(serializers.Serializer):
     phone = serializers.CharField(label="收货人手机号")
     sex = serializers.IntegerField(label="收货人性别")
     address = serializers.CharField(label="详细地址")
+    added = serializers.CharField(required=False, allow_blank=True, label="补充说明")
     province = serializers.IntegerField(label="省编码")
     city = serializers.IntegerField(label="市编码")
     county = serializers.IntegerField(label="区编码")
@@ -158,7 +159,9 @@ class MallOrdersSerializer(serializers.Serializer):
     order_status = serializers.IntegerField(required=False, label="订单状态")
     delivery_method = serializers.IntegerField(label="配送方式：1：送货上门，2：客户自提")
     delivery_type = serializers.IntegerField(required=False, label="订单配送类型:员工/快递")
-    total_amount_gross = serializers.DecimalField(max_digits=13, decimal_places=4, label="订单金额（优惠前）")
+    total_amount_gross = serializers.DecimalField(max_digits=13, decimal_places=2, label="订单金额（优惠前）")
+    total_amount_net = serializers.DecimalField(max_digits=13, decimal_places=2, label="订单金额（优惠后）")
+    order_num = serializers.CharField(label="订单编号")
     order_details = AdminOrderDetailSerializer(required=False, many=True, label="订单对应的订单详情对象")
     groupon_attend = GrouponAttendBasicSerializer(required=False, label="拼团参与信息")
 

@@ -1,15 +1,17 @@
 """自己定义的视图类"""
+import datetime
+
 from rest_framework import status, exceptions
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView
-from rest_framework_jwt.authentication import JSONWebTokenAuthentication
-from rest_framework_jwt.settings import api_settings
+from rest_framework_jwt.settings import api_settings as jwt_setting
 
 from settings import AUTH_COOKIE_DOMAIN
 from shop.services import get_shop_by_shop_id, get_shop_by_shop_code
 from staff.constant import StaffRole, StaffPermission
 from staff.services import get_staff_by_user_id_and_shop_id
 from user.models import User
+from user.utils import ZhiHaoJWTAuthentication
 from wsc_django.utils.authenticate import WSCIsLoginAuthenticate
 from wsc_django.utils.permission import StaffRolePermission, WSCStaffPermission
 
@@ -99,7 +101,7 @@ class UserBaseView(GlobalBaseView):
         return request
 
     def _get_current_user(self, request):
-        jwt = JSONWebTokenAuthentication()
+        jwt = ZhiHaoJWTAuthentication()
         try:
             res = jwt.authenticate(request)
         except Exception as e:
@@ -111,12 +113,16 @@ class UserBaseView(GlobalBaseView):
             user = None
         return user
 
-    def _set_current_user(self, user: User):
-        jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
-        jwt_encode_handler = api_settings.JWT_ENCODE_HANDLER
-        payload = jwt_payload_handler(user)
+    def _set_current_user(
+            self, user: User, expiration_delta=datetime.timedelta(hours=1)
+    ):
+        jwt_payload_handler = jwt_setting.JWT_PAYLOAD_HANDLER
+        jwt_encode_handler = jwt_setting.JWT_ENCODE_HANDLER
+        payload = jwt_payload_handler(user, expiration_delta)
         token = jwt_encode_handler(payload)
-        return token
+        refresh_payload = jwt_payload_handler(user, datetime.timedelta(days=1), 'refresh_token')
+        refresh_token = jwt_encode_handler(refresh_payload)
+        return (token, refresh_token)
 
 
 class StaffBaseView(UserBaseView):
@@ -179,7 +185,7 @@ class SuperBaseView(GlobalBaseView):
     """对接总后台, 没有登录信息和店铺信息"""
 
     def _get_current_user(self, request):
-        jwt = JSONWebTokenAuthentication()
+        jwt = ZhiHaoJWTAuthentication()
         try:
             res = jwt.authenticate(request)
         except Exception as e:
@@ -191,4 +197,22 @@ class SuperBaseView(GlobalBaseView):
             user = None
         return user
 
+    def _set_current_user(
+            self, user: User, expiration_delta=datetime.timedelta(days=1)
+    ):
+        jwt_payload_handler = jwt_setting.JWT_PAYLOAD_HANDLER
+        jwt_encode_handler = jwt_setting.JWT_ENCODE_HANDLER
+        payload = jwt_payload_handler(user, expiration_delta)
+        token = jwt_encode_handler(payload)
+        refresh_payload = jwt_payload_handler(user, datetime.timedelta(days=1), 'refresh_token')
+        refresh_token = jwt_encode_handler(refresh_payload)
+        return (token, refresh_token)
 
+    def _refresh_current_user(
+            self, user: User, expiration_delta=datetime.timedelta(days=1)
+    ):
+        jwt_payload_handler = jwt_setting.JWT_PAYLOAD_HANDLER
+        jwt_encode_handler = jwt_setting.JWT_ENCODE_HANDLER
+        payload = jwt_payload_handler(user, expiration_delta)
+        token = jwt_encode_handler(payload)
+        return token

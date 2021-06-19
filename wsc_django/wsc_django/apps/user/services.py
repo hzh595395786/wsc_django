@@ -16,6 +16,8 @@ def create_user(user_info: dict):
     :return:
     """
     user = User(**user_info)
+    if user_info.get("password", None):
+        user.set_password(user_info.get("password"))
     if not re.match(r'^http(s)?://.+$', user.head_image_url):
         user.head_image_url = QINIU_SHOP_IMG_HOST + user.head_image_url
     user.save()
@@ -149,6 +151,8 @@ def get_user_by_phone_and_password(phone: str, password: str, login_type: int):
     user = User.objects.filter(phone=phone).first()
     if not user:
         return False, "用户不存在"
+    if not user.password:
+        return False, "用户还未设置密码，请用手机号登录"
     if not user.check_password(password):
         return False, "密码不正确"
     return True, user

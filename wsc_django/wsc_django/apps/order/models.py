@@ -173,6 +173,7 @@ class OrderAddress(TimeBaseModel):
     city = models.IntegerField(verbose_name="城市编码")
     county = models.IntegerField(verbose_name="区编码")
     address = models.CharField(max_length=64, null=False, verbose_name="详细地址")
+    added = models.CharField(max_length=50, null=True, verbose_name="补充说明")
     name = models.CharField(max_length=32, null=False, verbose_name="收件人姓名")
     sex = models.SmallIntegerField(null=False, default=Sex.UNKNOWN, verbose_name="收件人性别,0:未知1:男2:女")
     phone = models.CharField(max_length=32, default="", verbose_name="收件人手机号")

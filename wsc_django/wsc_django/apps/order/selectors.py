@@ -61,6 +61,8 @@ def get_order_address_by_order_id(order_id: int):
     :return:
     """
     order_address = OrderAddress.objects.filter(order_id=order_id).first()
+    if order_address:
+        order_address.address = order_address.full_address
     return order_address
 
 
@@ -296,16 +298,19 @@ def list_customer_orders(
     return order_list
 
 
-def list_customer_order_by_customer_ids(customer_ids: list):
+def list_customer_order_by_customer_ids(customer_ids: list, order_status: list):
     """
     通过用户ID查出一个用户(对应多个客户)的所有订单
     :param customer_ids:
+    :param order_status:
     :return:
     """
     order_list_query = (
         Order.objects.filter(customer_id__in=customer_ids)
         .order_by("-create_time")
     )
+    if order_status:
+        order_list_query = order_list_query.filter(order_status__in=order_status)
     order_list = order_list_query.all()
     # 订单详情
     order_ids = [order.id for order in order_list]

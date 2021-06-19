@@ -57,6 +57,7 @@ class MineAddress(TimeBaseModel):
     latitude = models.DecimalField(null=True, max_digits=10, decimal_places=4, verbose_name="纬度")
     name = models.CharField(max_length=32, null=False, verbose_name="顾客姓名")
     sex = models.SmallIntegerField(null=False, default=Sex.UNKNOWN, verbose_name="顾客性别,0:未知1:男2:女")
+    added = models.CharField(null=True, max_length=50, verbose_name="补充说明，可以填写门牌号等信息")
     phone = models.CharField(max_length=32, default="", verbose_name="顾客手机号")
     default = models.SmallIntegerField(default=MineAddressDefault.NO, verbose_name="是否为默认地址")
     status = models.SmallIntegerField(default=MineAddressStatus.NORMAL, verbose_name="状态,0:删除1:正常")
