@@ -1,9 +1,10 @@
 import asyncio
 import aioredis
-from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 
+from channels.generic.websocket import WebsocketConsumer
 from django.core import signing
+from asgiref.sync import async_to_sync
 
 from settings import REDIS_SERVER, REDIS_PORT
 from ws.constant import CHANNEL_ADMIN
@@ -12,32 +13,31 @@ from ws.constant import CHANNEL_ADMIN
 RAISE_ERROR = object()
 
 
-class AdminWebSocketConsumer(AsyncWebsocketConsumer):
+class AdminWebSocketConsumer(WebsocketConsumer):
     """后台websocket"""
 
-    async def reader(self, ch):
-        while await ch.wait_message():
-            msg = await ch.get_json()
-            await self.receive(msg)
-
-    async def connect(self):
-        self.sub = await aioredis.create_redis(
-            (REDIS_SERVER, REDIS_PORT), db=10,
+    def connect(self):
+        async_to_sync(self.channel_layer.group_add)(
+            CHANNEL_ADMIN, self.channel_name
         )
-        res = await self.sub.subscribe(CHANNEL_ADMIN)
-        self.tsk = asyncio.create_task(self.reader(res[0]))
-        await self.accept()
+        self.accept()
 
-    async def disconnect(self, close_code):
-        self.tsk.cancel()
-        self.sub.close()
+    def disconnect(self, close_code):
+        async_to_sync(self.channel_layer.group_discard)(
+            CHANNEL_ADMIN, self.channel_name
+        )
 
-    async def receive(self, text_data=None, bytes_data=None):
+    def send_message(self, event):
+        # 服务器向前端发送信息
+        message = event['message']
+        self.receive(message)
+
+    def receive(self, text_data=None, bytes_data=None):
         if text_data == "ping":
-            await self.send(json.dumps({"event": "pong", "data": "pong"}))
+            self.send(json.dumps({"event": "pong", "data": "pong"}))
         else:
             key = "wsc_shop_id"
-            salt = "微商城商铺id"
+            salt = "hzh_wsc_shop_id"
             default = RAISE_ERROR
             cookie_value = self.scope["cookies"].get(key)
             try:
@@ -49,4 +49,4 @@ class AdminWebSocketConsumer(AsyncWebsocketConsumer):
                 else:
                     raise
             if str(text_data["shop_id"]) == str(cookie_shop_id):
-                await self.send(json.dumps({"event": text_data["event"], "data": text_data["data"]}))
+                self.send(json.dumps({"event": text_data["event"], "data": text_data["data"]}))

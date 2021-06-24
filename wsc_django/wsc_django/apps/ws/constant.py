@@ -1,1 +1,1 @@
-CHANNEL_ADMIN = "websocket:admin"  # 后台websocket频道
+CHANNEL_ADMIN = "websocket_admin"  # 后台websocket频道

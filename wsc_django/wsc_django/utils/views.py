@@ -12,7 +12,7 @@ from staff.constant import StaffRole, StaffPermission
 from staff.services import get_staff_by_user_id_and_shop_id
 from user.models import User
 from user.utils import ZhiHaoJWTAuthentication
-from wsc_django.utils.authenticate import WSCIsLoginAuthenticate
+from wsc_django.utils.authenticate import WSCIsLoginAuthenticate, SimpleEncrypt
 from wsc_django.utils.permission import StaffRolePermission, WSCStaffPermission
 
 
@@ -43,7 +43,11 @@ class GlobalBaseView(GenericAPIView):
             error_redirect=None,
             error_key=None,
             error_obj=None,
+            error_dict=None,
     ):
+        if error_dict:
+            error_code = error_dict.get("error_code", 500)
+            error_text = error_dict.get("error_text", "网络错误")
         if error_obj:
             error_code = error_obj.error_code
             error_text = error_obj.error_text
@@ -60,15 +64,13 @@ class GlobalBaseView(GenericAPIView):
             res = {"success": False, "error_text": error_text}
         return res
 
-    def send_error(self, status_code, error_message: dict=None):
+    def send_error(self, status_code, error_message: dict):
         """后期可以在改进，这里直接返回对应状态码的响应"""
         # 处理序列化器返回错误
+        error_message["error_code"] = status_code
         if status_code == 400:
             error_message = {'error_text': list(error_message)[0] + "错误"}
-        if error_message:
-            return Response(data=error_message, status=status_code)
-        else:
-            return Response(status=status_code)
+        return self.send_fail(error_dict=error_message)
 
     def _get_paginated_data(self, query_set, serializer):
         """进行分页操作"""
@@ -183,6 +185,22 @@ class MallBaseView(UserBaseView):
 
 class SuperBaseView(GlobalBaseView):
     """对接总后台, 没有登录信息和店铺信息"""
+
+    @classmethod
+    def validate_sign(cls, sign_: str, params: tuple):
+        def f(func):
+            def wrapper(self, request, args):
+                sign = args.get(sign_)
+                key = SimpleEncrypt.decrypt(sign)
+                key_list = key.split("@")
+                if len(key_list) != len(params):
+                    return self.send_error(403, {"error_text": "鉴权失败"})
+                for index, v in enumerate(params):
+                    if key_list[index] != str(args.get(v)):
+                        return self.send_error(403, {"error_text": "鉴权失败"})
+                return func(self, request, args)
+            return wrapper
+        return f
 
     def _get_current_user(self, request):
         jwt = ZhiHaoJWTAuthentication()

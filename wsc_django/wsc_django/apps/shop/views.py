@@ -44,6 +44,9 @@ class SuperShopView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_name": fields.String(
                 required=True, validate=[validate.Length(0, 128)], comment="店铺名"
             ),
@@ -91,6 +94,7 @@ class SuperShopView(SuperBaseView):
         },
         location="json",
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def post(self, request, args):
         user = self._get_current_user(request)
         if not user:
@@ -107,10 +111,14 @@ class SuperShopView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_id": fields.Integer(required=True, comment="商铺id"),
         },
         location="query"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def get(self, request, args):
         user = self._get_current_user(request)
         if not user:
@@ -133,10 +141,14 @@ class SuperShopListView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "role": fields.Integer(required=False, missing=1, comment="访问角色，1：为普通用户，2.为admin用户"),
         },
         location="query"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def get(self, request, args):
         user = self._get_current_user(request)
         if not user:
@@ -165,10 +177,14 @@ class SuperShopChoiceView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_id": fields.Integer(required=True, comment="商铺id"),
         },
         location="json"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def post(self, request, args):
         # 还是检验一下是否登录
         user = self._get_current_user(request)
@@ -211,6 +227,9 @@ class SuperShopStatusView(UserBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_status": fields.Integer(
                 required=True,
                 validate=[
@@ -223,6 +242,7 @@ class SuperShopStatusView(UserBaseView):
         },
         location="query"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def get(self, request, args):
         shop_status = args.get("shop_status")
         shop_list = list_shop_by_shop_status(shop_status)
@@ -264,6 +284,9 @@ class SuperShopStatusView(UserBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_id": fields.Integer(
                 required=True, validate=[validate.Range(0)], comment="店铺ID"
             ),
@@ -281,6 +304,7 @@ class SuperShopStatusView(UserBaseView):
         },
         location="json",
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def put(self, request, args):
         shop_id = args.pop("shop_id")
         shop = get_shop_by_shop_id(shop_id)
@@ -301,6 +325,9 @@ class SuperShopVerifyView(UserBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_id": fields.Integer(
                 required=True, validate=[validate.Range(1)], comment="店铺ID"
             ),
@@ -332,6 +359,7 @@ class SuperShopVerifyView(UserBaseView):
         },
         location="json"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def put(self, request, args):
         shop = get_shop_by_shop_id(args.pop("shop_id"))
         if not shop:
@@ -350,6 +378,9 @@ class SuperShopPayVerifyView(UserBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "shop_id": fields.Integer(
                 required=True, validate=[validate.Range(1)], comment="店铺ID"
             ),
@@ -380,6 +411,7 @@ class SuperShopPayVerifyView(UserBaseView):
         },
         location="json"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def post(self, request, args):
         shop = get_shop_by_shop_id(args.get("shop_id"))
         if not shop:

@@ -1,6 +1,7 @@
 import jwt
 import warnings
 import uuid
+import time
 
 from calendar import timegm
 from datetime import datetime
@@ -85,18 +86,18 @@ class ZhiHaoJWTAuthentication(JSONWebTokenAuthentication):
             payload = jwt_decode_handler(token)
         except jwt.ExpiredSignature:
             print('Signature has expired.')
-            return False
+            return False, None
         except jwt.DecodeError:
             print('Error decoding signature.')
-            return False
+            return False, None
         except jwt.InvalidTokenError:
-            return False
+            return False, None
         try:
             user = self.authenticate_credentials(payload)
         except Exception as e:
             print(e)
-            return False
-        return user
+            return False, None
+        return True, user
 
     def authenticate_credentials(self, payload):
         """
@@ -106,6 +107,7 @@ class ZhiHaoJWTAuthentication(JSONWebTokenAuthentication):
         User = get_user_model()
         username = jwt_get_username_from_payload(payload)
         password = payload.get('password')
+        exp_hour = (payload.get('exp') - int(time.time())) / 3600 # 还剩多少小时过期
 
         if not username:
             msg = _('Invalid payload.')

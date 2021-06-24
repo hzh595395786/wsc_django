@@ -7,7 +7,7 @@ from django.urls import path, re_path
 from user import views
 
 urlpatterns_admin = [
-    path('api/super/user/authorization/', views.AdminUserAuthorizationView.as_view()), # 总后台后台验证登录状态
+    path('api/super/user/authorization/', views.AdminUserAuthorizationView.as_view()),  # 总后台后台验证登录状态
     path('api/super/user/', views.SuperUserView.as_view()),  # 总后台获取用户详情&修改用户基本信息
     path('api/super/user/phone/', views.SuperUserPhoneView.as_view()),  # 总后台修改用户手机号
     path('api/super/user/password/', views.SuperUserPasswordView.as_view()),  # 总后台修改密码

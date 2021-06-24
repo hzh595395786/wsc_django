@@ -536,7 +536,7 @@ def set_order_status_refunded(order: Order, user_id: int, refund_type: int):
     order.order_status = OrderStatus.REFUNDED
     order.refund_type = refund_type
     order_detail_list = list_order_details_by_order_id(order.id)
-    order_detail_list.update(order_status=OrderStatus.REFUNDED, refund_type=refund_type)
+    order_detail_list.update(status=OrderStatus.REFUNDED, refund_type=refund_type)
     storage_record_list = []
     for order_detail in order_detail_list:
         change_storage = order_detail.quantity_net
@@ -603,7 +603,7 @@ def set_order_status_canceled(order: Order):
     customer = get_customer_by_customer_id_and_shop_id(order.customer.id, order.shop.id)
     order.order_status = OrderStatus.CANCELED
     order_detail_list = list_order_details_by_order_id(order.id)
-    order_detail_list.update(order_status=OrderStatus.CANCELED)
+    order_detail_list.update(status=OrderStatus.CANCELED)
     storage_record_list = []
     for order_detail in order_detail_list:
         change_storage = order_detail.quantity_net
@@ -636,7 +636,7 @@ def set_order_status_confirmed_finish(
 
     order.order_status = order_status
     order_detail_list = list_order_details_by_order_id(order.id)
-    order_detail_list.update(order_status=order_status)
+    order_detail_list.update(status=order_status)
     # 生成操作记录
     log_info = {
         "order_id": order.id,
@@ -661,7 +661,7 @@ def set_order_status_refund_failed(
     """
     order.order_status = OrderStatus.REFUND_FAIL
     order_detail_list = list_order_details_by_order_id(order.id)
-    order_detail_list.update(order_status=OrderStatus.REFUND_FAIL)
+    order_detail_list.update(status=OrderStatus.REFUND_FAIL)
     if error_text in [
         "店铺未开通线上支付",
         "店铺支付渠道错误",

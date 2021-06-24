@@ -1,15 +1,9 @@
 """测试使用"""
-from django_redis import get_redis_connection
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 from rest_framework_jwt.settings import api_settings
 
-from delivery.models import DeliveryConfig
 from demo.serializers import DemoSerializer
-from product.services import create_product_pictures
-from shop.utils import put_qcode_file_to_tencent_cos, get_shop_mini_program_qcode
 from user.models import User
-from user.services import get_user_by_id
 from wsc_django.utils.views import GlobalBaseView
 
 
@@ -37,6 +31,11 @@ class DemoView(GlobalBaseView):
         return self.send_success(token=token)
 
     def post(self, request):
-        qcode_file = get_shop_mini_program_qcode('bc7712bac')
-        response = put_qcode_file_to_tencent_cos(qcode_file, 'bc7712bac')
-        return self.send_success(data=response)
+        from wsc_django.utils.authenticate import SimpleEncrypt
+        import time
+        timestamp = int(time.time())
+        id = 1
+        text = '%d@%d'%(timestamp, id)
+        res = SimpleEncrypt.encrypt(text)
+        return self.send_success(data=res)
+

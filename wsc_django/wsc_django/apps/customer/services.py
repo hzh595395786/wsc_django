@@ -118,11 +118,22 @@ def get_customer_by_customer_id(customer_id: int):
 
 def get_customer_by_user_id_and_shop_id(user_id: int, shop_id: int):
     """
-    通过店铺ID和userID查到一个客户
+    通过商铺ID和userID查到一个客户
     :param user_id:
     :return:
     """
     customer = Customer.objects.filter(user_id=user_id, shop_id=shop_id).first()
+    return customer
+
+
+def get_customer_by_user_id_and_shop_code(user_id: int, shop_code: str):
+    """
+    通过商铺编号和userID查到一个客户
+    :param user_id:
+    :param shop_code:
+    :return:
+    """
+    customer = Customer.objects.filter(user_id=user_id, shop__shop_code=shop_code).first()
     return customer
 
 

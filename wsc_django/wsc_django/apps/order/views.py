@@ -344,7 +344,7 @@ class AdminOrderRefundView(AdminBaseView):
         order = get_order_by_shop_id_and_id(shop_id, args.get("order_id"))
         if not order:
             return self.send_fail(error_text="订单不存在")
-        elif order.status not in [
+        elif order.order_status not in [
             OrderStatus.PAID,
             OrderStatus.CONFIRMED,
             OrderStatus.FINISHED,

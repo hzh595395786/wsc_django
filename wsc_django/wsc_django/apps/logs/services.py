@@ -127,7 +127,7 @@ def get_order_log_time_by_order_num(order_num: str):
     order_log = OrderLog.objects.filter(
         order_num=order_num,
         operate_type__in=[
-            [OrderLogType.DIRECT, OrderLogType.CONFIRM, OrderLogType.FINISH]
+            OrderLogType.DIRECT, OrderLogType.CONFIRM, OrderLogType.FINISH
         ]
     ).order_by("-operate_time").first()
     return order_log.operate_time

@@ -30,6 +30,28 @@ def get_shop_mini_program_qcode(shop_code):
     return qcode_file
 
 
+def put_mps_to_cos():
+    secret_id = TENCENT_COS_SECRETID
+    secret_key = TENCENT_COS_SECRETKEY
+    region = 'ap-nanjing'  # 区域
+    bucket = 'zhihao-1300126182'  # 桶名词
+    token = None  # 使用临时密钥需要传入Token，默认为空,可不填
+    config = CosConfig(Region=region, SecretId=secret_id, SecretKey=secret_key, Token=token)  # 获取配置对象
+    client = CosS3Client(config)
+    key = 'mp3/new_order_notify.mp3'
+    try:
+        response = client.put_object(
+            Bucket=bucket,
+            Body='',
+            Key=key,
+            ContentType='image/png'
+        )
+    except CosServiceError as e:
+        return False, e.get_error_msg()
+    if not response.get("ETag", None):
+        return False, "上传失败"
+
+
 def put_qcode_file_to_tencent_cos(qcode_file, shop_code):
     """
     将小程序码文件上传到腾讯云cos并返回url

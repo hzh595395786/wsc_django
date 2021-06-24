@@ -8,12 +8,16 @@ from customer.services import create_customer
 from user.constant import UserLoginType, Sex
 from user.models import User
 from user.utils import jwt_response_payload_handler, ZhiHaoJWTAuthentication
+from wsc_django.utils.arguments import DecryptPassword
 from wsc_django.apps.settings import MP_APPSECRET, MP_APPID
 from wsc_django.utils.constant import PHONE_RE, PASSWORD_RE, EMAIL_RE
 from wsc_django.utils.sms import gen_sms_code, YunPianSms, TencentSms
 from wsc_django.utils.views import UserBaseView, MallBaseView, AdminBaseView, GlobalBaseView, SuperBaseView
 from user.serializers import UserCreateSerializer, SuperUserSerializer, EmailSerializer, UserSerializer
-from user.interface import get_customer_by_user_id_and_shop_id_interface
+from user.interface import (
+    get_customer_by_user_id_and_shop_id_interface,
+    get_customer_by_user_id_and_shop_code_interface,
+)
 from user.services import (
     get_user_by_wx_unionid,
     get_openid_by_user_id_and_appid,
@@ -30,19 +34,20 @@ class AdminUserAuthorizationView(SuperBaseView):
 
     @use_args(
         {
-            "token": fields.String(required=True, comment="token值"),
-            "refresh_token": fields.String(required=True, comment="refresh_token值"),
+            "token": fields.String(required=True, allow_none=True, comment="token值"),
+            "refresh_token": fields.String(required=True, allow_none=True, comment="refresh_token值"),
+            "shop_code": fields.String(required=False, comment="商铺编号，若从小程序端调用则必传")
         }
     )
     def post(self, request, args):
         jwt = ZhiHaoJWTAuthentication()
-        res = jwt.authenticate_token(args.get("token"))
+        res, user = jwt.authenticate_token(args.get("token"))
         if not res:
-            refresh_res = jwt.authenticate_token(args.get("refresh_token"))
+            refresh_res, user = jwt.authenticate_token(args.get("refresh_token"))
             if refresh_res:
                 # 若token过期，而refresh_token未过期，则刷新token，返回已过期且带上token和用户信息
-                token = self._refresh_current_user(refresh_res)
-                serializer = SuperUserSerializer(refresh_res)
+                token = self._refresh_current_user(user)
+                serializer = SuperUserSerializer(user)
                 return self.send_success(data={'expire': True, 'token': token, 'user_data': serializer.data})
             else:
                 # 若token过期，且refresh_token也过期，则返回401
@@ -51,14 +56,32 @@ class AdminUserAuthorizationView(SuperBaseView):
                 )
         else:
             # 若token未到期返回未过期，不带token, 带上用户信息
-            serializer = SuperUserSerializer(res)
-            return self.send_success(data={'expire': False, 'user_data': serializer.data})
+            serializer = SuperUserSerializer(user)
+            shop_code = args.get("shop_code", None)
+            user_data = dict(serializer.data)
+            if shop_code:
+                # 额外查询用户的积分数据
+                customer = get_customer_by_user_id_and_shop_code_interface(user.id, shop_code)
+                user_data["points"] = round(float(customer.point), 2) if customer else 0
+                user_data["is_new_customer"] = (
+                    customer.is_new_customer() if customer else True
+                )
+            return self.send_success(data={'expire': False, 'user_data': user_data})
 
 
 class SuperUserView(SuperBaseView):
     """总后台-用户-获取用户详情&修改用户基本信息"""
 
-    def get(self, request):
+    @use_args(
+        {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
+        },
+        location="query"
+    )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
+    def get(self, request, args):
         user = self._get_current_user(request)
         if not user:
             return self.send_error(
@@ -69,6 +92,9 @@ class SuperUserView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "nickname": fields.String(required=False, validate=[validate.Length(1, 15)], comment="用户昵称"),
             "realname": fields.String(required=False, validate=[validate.Length(1, 15)], comment="用户真实姓名"),
             "sex": fields.Integer(
@@ -79,6 +105,7 @@ class SuperUserView(SuperBaseView):
             "head_image_url": fields.String(required=False, validate=[validate.Length(0,1024)], comment="用户头像")
         }
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def put(self, request, args):
         user = self._get_current_user(request)
         if not user:
@@ -97,11 +124,15 @@ class SuperUserPhoneView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "phone": fields.String(required=True, validate=[validate.Regexp(PHONE_RE)], comment="手机号"),
             "sms_code": fields.String(required=True, comment="短信验证码"),
         },
         location="json"
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def put(self, request, args):
         user = self._get_current_user(request)
         phone = args["phone"]
@@ -124,12 +155,16 @@ class SuperUserPasswordView(SuperBaseView):
 
     @use_args(
         {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
             "phone": fields.String(required=True, validate=[validate.Regexp(PHONE_RE)], comment="手机号"),
             "sms_code": fields.String(required=True, comment="短信验证码"),
-            "password1": fields.String(required=True, validate=[validate.Regexp(PASSWORD_RE)], comment="密码"),
-            "password2": fields.String(required=True, validate=[validate.Regexp(PASSWORD_RE)], comment="重复密码"),
+            "password1": DecryptPassword(required=True, validate=[validate.Regexp(PASSWORD_RE)], comment="密码"),
+            "password2": DecryptPassword(required=True, validate=[validate.Regexp(PASSWORD_RE)], comment="重复密码"),
         }
     )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def put(self, request, args):
         user = self._get_current_user(request)
         if not user:
@@ -141,7 +176,7 @@ class SuperUserPasswordView(SuperBaseView):
         success, info = validate_sms_code(phone, args["sms_code"])
         if not success:
             return self.send_fail(error_text=info)
-        success, info = update_user_password(user, args["password1"], args["password2"])
+        success, info = update_user_password(user, args["password1"] ,args["password2"])
         if not success:
             return self.send_fail(error_text=info)
         token, refresh_token = self._set_current_user(user)
@@ -152,7 +187,16 @@ class SuperUserPasswordView(SuperBaseView):
 class SuperUserEmailView(SuperBaseView):
     """总后台-用户-验证邮箱&b绑定邮箱&激活邮箱"""
 
-    @use_args({"token": fields.String(required=True, comment="验证token")}, location="query")
+    @use_args(
+        {
+            "sign": fields.String(required=True, comment="加密认证"),
+            "timestamp": fields.Integer(required=True, comment="时间戳"),
+            "user_id": fields.Integer(required=True, comment="用户ID"),
+            "token": fields.String(required=True, comment="验证token"),
+        },
+        location="query"
+    )
+    @SuperBaseView.validate_sign("sign", ("user_id", "timestamp"))
     def get(self, request, args):
         token = args["token"]
         # 验证token
@@ -216,7 +260,7 @@ class AdminUserView(UserBaseView):
             "code": fields.String(required=False, comment="微信code"),
             "phone": fields.String(required=False, validate=[validate.Regexp(PHONE_RE)], comment="手机号"),
             "sms_code": fields.String(required=False, comment="短信验证码"),
-            "password": fields.String(required=False, comment="密码"),
+            "password": DecryptPassword(required=False, validate=[validate.Regexp(PASSWORD_RE)], comment="密码"),
             "login_type": fields.Integer(
                 required=True,
                 validate=[validate.OneOf(
@@ -303,7 +347,7 @@ class MallUserView(MallBaseView):
             "code": fields.String(required=False, comment="微信code"),
             "phone": fields.String(required=False, validate=[validate.Regexp(PHONE_RE)], comment="手机号"),
             "sms_code": fields.String(required=False, comment="短信验证码"),
-            "password": fields.String(required=False, comment="密码"),
+            "password": DecryptPassword(required=False, validate=[validate.Regexp(PASSWORD_RE)], comment="密码"),
             "login_type": fields.Integer(
                 required=True,
                 validate=[validate.OneOf(
@@ -510,16 +554,16 @@ class SMSCodeView(GlobalBaseView):
         pl.setex("sms_%s" % (phone), 300, sms_code) # 验证码过期时间300秒
         pl.setex(phone_ip, 60, 1) # 验证码60秒发送一次
         pl.execute()
-        try:
-            # # 调用第三方接口发送短信
-            use = "绑定手机号"
-            # 先用腾讯发,失败就云片用发
-            ret, info = TencentSms.send_tencent_verify_code(phone, sms_code, use)
-            if not ret:
-                ret, info = YunPianSms.send_yunpian_verify_code(phone, sms_code, use)
-            if not ret:
-                return self.send_fail(error_text=info)
-        except Exception as e:
-            print(e)
-            return self.send_fail(error_text="短信发送失败")
+        # try:
+        #     # # 调用第三方接口发送短信
+        #     use = "绑定手机号"
+        #     # 先用腾讯发,失败就云片用发
+        #     ret, info = TencentSms.send_tencent_verify_code(phone, sms_code, use)
+        #     if not ret:
+        #         ret, info = YunPianSms.send_yunpian_verify_code(phone, sms_code, use)
+        #     if not ret:
+        #         return self.send_fail(error_text=info)
+        # except Exception as e:
+        #     print(e)
+        #     return self.send_fail(error_text="短信发送失败")
         return self.send_success()

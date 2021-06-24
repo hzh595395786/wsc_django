@@ -3,6 +3,9 @@ import json
 from webargs.fields import Field
 from webargs import ValidationError
 
+from wsc_django.utils.authenticate import SimpleEncrypt
+
+
 class StrToList(Field):
     """字符串转列表list(int)"""
 
@@ -38,5 +41,17 @@ class StrToDict(Field):
                 return json.loads(value)
             except Exception as e:
                 raise ValidationError("value error must json str")
+        else:
+            raise ValidationError("value type error")
+
+
+class DecryptPassword(Field):
+
+    def _deserialize(self, value, attr, data, **kwargs ):
+        if isinstance(value, str):
+            try:
+                return SimpleEncrypt.decrypt(value)
+            except Exception as e:
+                raise ValidationError("decrypt password fail")
         else:
             raise ValidationError("value type error")
